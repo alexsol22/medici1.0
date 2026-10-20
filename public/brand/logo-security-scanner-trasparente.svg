@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200" width="640" height="200">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#0284c7"/>
+    </linearGradient>
+  </defs>
+  
+  <g transform="translate(30,20)">
+    <path d="M80 0 L150 26 V86 C150 126 120 152 80 166 C40 152 10 126 10 86 V26 Z" fill="url(#g)"/>
+    <path d="M80 14 L138 35 V86 C138 118 114 139 80 152 C46 139 22 118 22 86 V35 Z" fill="#ffffff" fill-opacity="0.18"/>
+    <path d="M50 84 L72 106 L112 60" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="200" y="102" font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="800" fill="#0c4a6e">Security</text>
+  <text x="200" y="158" font-family="Helvetica, Arial, sans-serif" font-size="52" font-weight="500" fill="#0ea5e9" letter-spacing="3">Scanner</text>
+</svg>
