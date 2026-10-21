@@ -116,8 +116,10 @@ class DatabaseSeeder extends Seeder
         }
 
         ModelloMessaggio::create([
-            'nome' => 'Promemoria turno', 'giorni_prima' => 1, 'oggetto' => 'Promemoria turno del [DATA TURNO]',
+            'nome' => 'Promemoria turno', 'giorni_prima' => 1, 'invia_email' => true, 'invia_sms' => true,
+            'oggetto' => 'Promemoria turno del [DATA TURNO]',
             'testo_email' => "Ciao [OPERATORE],\nti ricordiamo il turno presso [SEDE] il [DATA TURNO] ([ORA TURNO]).\n[INDIRIZZO]",
+            'testo_sms' => 'Ciao [OPERATORE], promemoria turno presso [SEDE] il [DATA TURNO] alle [ORA TURNO].',
         ]);
 
         foreach ([

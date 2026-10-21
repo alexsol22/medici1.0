@@ -7,6 +7,7 @@ use App\Livewire\Dashboard;
 use App\Livewire\GeneratoreQr;
 use App\Livewire\Login;
 use App\Livewire\Profilo;
+use App\Livewire\SedeForm;
 use App\Livewire\Sedi;
 use App\Livewire\Turni;
 use App\Models\Cliente;
@@ -117,6 +118,20 @@ class TopSecurityTest extends TestCase
         $this->get(route('logout'))->assertStatus(405);
     }
 
+    public function test_pagina_messaggi_mostra_tabelle_email_e_sms_con_testi_di_esempio(): void
+    {
+        $this->actingAs($this->utente('admin@topsecurity.test'))
+            ->get(route('messaggi'))
+            ->assertOk()
+            ->assertSee('Messaggi Email')
+            ->assertSee('Messaggi SMS')
+            ->assertSee('Promemoria turno del [DATA TURNO]')
+            ->assertSee('Ciao [OPERATORE],')
+            ->assertSee('promemoria turno presso [SEDE] il [DATA TURNO] alle [ORA TURNO].')
+            ->assertDontSee('MAIL_HOST=')
+            ->assertDontSee('SMS_API_KEY=');
+    }
+
     public function test_sezione_amministratori_visibile_a_staff_e_crea_utenti_admin(): void
     {
         $this->actingAs($this->utente('admin@topsecurity.test'))
@@ -202,6 +217,29 @@ class TopSecurityTest extends TestCase
         Storage::disk('local')->assertMissing($percorso);
     }
 
+    public function test_pagina_sede_crea_e_modifica(): void
+    {
+        $admin = $this->utente('admin@topsecurity.test');
+        $clienteId = Sede::first()->cliente_id;
+
+        $this->actingAs($admin)->get(route('sedi.crea'))->assertOk()->assertSee('Nuova sede');
+
+        Livewire::actingAs($admin)->test(SedeForm::class)
+            ->set('f.cliente_id', $clienteId)->set('f.descrizione', 'Sede Pagina')
+            ->set('f.cap', '10121')->set('f.citta', 'Torino')->set('f.provincia', 'to')
+            ->set('f.lat', '45.0703')->set('f.lng', '7.6869')
+            ->call('salva')->assertHasNoErrors()->assertRedirect(route('sedi'));
+
+        $sede = Sede::where('descrizione', 'Sede Pagina')->firstOrFail();
+        $this->assertSame('TO', $sede->provincia);
+        $this->assertNotNull($sede->codice_qr_id);
+
+        $this->actingAs($admin)->get(route('sedi.modifica', $sede))->assertOk()->assertSee('Modifica sede');
+        Livewire::actingAs($admin)->test(SedeForm::class, ['sede' => $sede->id])
+            ->set('f.descrizione', 'Sede Aggiornata')->call('salva')->assertHasNoErrors();
+        $this->assertSame('Sede Aggiornata', $sede->fresh()->descrizione);
+    }
+
     public function test_il_cliente_vede_solo_le_proprie_sedi(): void
     {
         $cliente = $this->utente('cliente@topsecurity.test');
@@ -209,7 +247,7 @@ class TopSecurityTest extends TestCase
 
         $this->actingAs($cliente);
         Livewire::test(Sedi::class)->assertSee(Sede::where('cliente_id', $cliente->cliente_id)->first()->descrizione)->assertDontSee($altra->descrizione);
-        Livewire::test(Sedi::class)->call('nuova')->assertForbidden();
+        $this->get(route('sedi.crea'))->assertForbidden();
     }
 
     public function test_timbratura_inizio_passaggio_fine(): void
@@ -226,7 +264,6 @@ class TopSecurityTest extends TestCase
         $t = app(Timbratura::class);
 
         $this->assertFalse($t->scansiona($op, 'INESISTENTE', null, null)['ok']);
-        $this->assertFalse($t->scansiona($op, $qrPost, null, null)['ok'], 'passaggio prima dell\'inizio');
         $this->assertFalse($t->scansiona($op, $qrSede, 0.0, 0.0)['ok'], 'troppo lontano');
 
         $r = $t->scansiona($op, $qrSede, (float) $sede->lat, (float) $sede->lng);
@@ -243,6 +280,29 @@ class TopSecurityTest extends TestCase
         $this->assertSame('F', $turno->stato->value);
         $this->assertNotNull($turno->ore_lavorate);
         $this->assertSame(3, Presenza::where('turno_id', $turno->id)->count());
+    }
+
+    public function test_prima_scansione_della_postazione_avvia_il_turno_e_registra_il_passaggio(): void
+    {
+        Turno::query()->delete();
+        $op = $this->utente('marco@topsecurity.test');
+        $sede = Sede::first();
+        $turno = Turno::create([
+            'operatore_id' => $op->id, 'cliente_id' => $sede->cliente_id, 'sede_id' => $sede->id,
+            'inizio' => now()->subMinutes(10), 'fine' => now()->addHours(8), 'ore' => 8,
+        ]);
+        $qrPost = $sede->postazioni()->first()->codiceQr->codice;
+
+        $risultato = app(Timbratura::class)->scansiona($op, $qrPost, null, null);
+
+        $this->assertTrue($risultato['ok'], $risultato['message']);
+        $this->assertSame(Presenza::PASSAGGIO, $risultato['tipo']);
+        $this->assertStringContainsString('Turno iniziato.', $risultato['message']);
+        $this->assertSame('I', $turno->fresh()->stato->value);
+        $this->assertSame(
+            [Presenza::INIZIO, Presenza::PASSAGGIO],
+            $turno->presenze()->orderBy('id')->pluck('tipo')->all(),
+        );
     }
 
     public function test_nessun_turno_fuori_finestra_e_altro_operatore(): void

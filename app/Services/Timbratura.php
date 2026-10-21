@@ -75,7 +75,21 @@ class Timbratura
             ];
 
             if ($qr->tipo === CodiceQr::POSTAZIONE) {
-                return $this->passaggio($turno, $postazione, $base, $now);
+                $messaggioInizio = null;
+
+                if ($turno->stato === StatoTurno::Programmato) {
+                    $ritardoInizio = Calcoli::ritardoMinuti($turno->inizio, $now);
+                    Presenza::create($base + ['tipo' => Presenza::INIZIO, 'ritardo_minuti' => $ritardoInizio]);
+                    $turno->update(['stato' => StatoTurno::Iniziato]);
+                    $messaggioInizio = 'Turno iniziato. '.$this->descriviRitardo($ritardoInizio, 'inizio').' ';
+                }
+
+                $risultato = $this->passaggio($turno, $postazione, $base, $now);
+                if ($messaggioInizio !== null) {
+                    $risultato['message'] = $messaggioInizio.$risultato['message'];
+                }
+
+                return $risultato;
             }
 
             if ($turno->stato === StatoTurno::Programmato) {

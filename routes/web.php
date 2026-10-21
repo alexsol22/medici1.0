@@ -37,6 +37,8 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('ruolo:super_admin,admin,cliente')->group(function () {
         Route::get('/sedi', Livewire\Sedi::class)->name('sedi');
+        Route::get('/sedi/nuova', Livewire\SedeForm::class)->name('sedi.crea');
+        Route::get('/sedi/{sede}/modifica', Livewire\SedeForm::class)->name('sedi.modifica');
         Route::get('/turni', Livewire\Turni::class)->name('turni');
         Route::get('/presenze', Livewire\Presenze::class)->name('presenze');
         Route::get('/presenze/esporta', [DownloadController::class, 'presenze'])->name('presenze.esporta');

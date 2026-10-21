@@ -6,7 +6,7 @@
                 <select wire:model.live="filtroCliente" class="input sm:max-w-xs"><option value="">Tutti i clienti</option>@foreach ($clienti as $c)<option value="{{ $c->id }}">{{ $c->ragione_sociale }}</option>@endforeach</select>
             @endunless
         </div>
-        @if (auth()->user()->isStaff()) <button wire:click="nuova" class="btn-primary">+ Nuova sede</button> @endif
+        @if (auth()->user()->isStaff()) <a href="{{ route('sedi.crea', array_filter(['cliente' => $filtroCliente])) }}" wire:navigate class="btn-primary">+ Nuova sede</a> @endif
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -35,7 +35,7 @@
                     <button wire:click="postazioni({{ $s->id }})" class="btn-soft !px-3 !py-1.5">QR e postazioni</button>
                     @if (auth()->user()->isStaff())
                         <button wire:click="qr({{ $s->id }})" class="btn-soft !px-3 !py-1.5">Genera QR</button>
-                        <button wire:click="modifica({{ $s->id }})" class="btn-soft !px-3 !py-1.5">Modifica</button>
+                        <a href="{{ route('sedi.modifica', $s) }}" wire:navigate class="btn-soft !px-3 !py-1.5">Modifica</a>
                         <button wire:click="elimina({{ $s->id }})" wire:confirm="Eliminare la sede?" class="btn-danger !px-3 !py-1.5">Elimina</button>
                     @endif
                 </div>
@@ -45,39 +45,6 @@
         @endforelse
     </div>
     {{ $sedi->links() }}
-
-    @if ($modal)
-        <x-ui.modal :title="$sedeId ? 'Modifica sede' : 'Nuova sede'" wide>
-            <form wire:submit="salva" class="grid gap-4 sm:grid-cols-2">
-                <x-ui.field label="Cliente" name="f.cliente_id"><select wire:model="f.cliente_id" class="input"><option value="">—</option>@foreach ($clienti as $c)<option value="{{ $c->id }}">{{ $c->ragione_sociale }}</option>@endforeach</select></x-ui.field>
-                <x-ui.field label="Descrizione" name="f.descrizione"><input wire:model="f.descrizione" class="input"></x-ui.field>
-                <x-ui.field label="Indirizzo" name="f.indirizzo" class="sm:col-span-2"><input wire:model="f.indirizzo" class="input"></x-ui.field>
-                <x-ui.field label="CAP" name="f.cap"><input wire:model="f.cap" class="input"></x-ui.field>
-                <x-ui.field label="Città" name="f.citta"><input wire:model="f.citta" class="input"></x-ui.field>
-                <x-ui.field label="Provincia" name="f.provincia"><input wire:model="f.provincia" class="input" maxlength="2"></x-ui.field>
-                <x-ui.field label="Telefono" name="f.telefono"><input wire:model="f.telefono" class="input"></x-ui.field>
-                <x-ui.field label="Email" name="f.email"><input wire:model="f.email" class="input"></x-ui.field>
-                <x-ui.field label="Tariffa €/h" name="f.tariffa"><input wire:model="f.tariffa" class="input"></x-ui.field>
-                <x-ui.field label="Latitudine" name="f.lat"><input wire:model="f.lat" class="input"></x-ui.field>
-                <x-ui.field label="Longitudine" name="f.lng"><input wire:model="f.lng" class="input"></x-ui.field>
-                <x-ui.field label="Distanza max scansione (m)" name="f.distanza_max" class="sm:col-span-2"><input type="number" wire:model="f.distanza_max" class="input"></x-ui.field>
-                <div class="sm:col-span-2">
-                    <label class="label">Ore di servizio richieste per giorno</label>
-                    <div class="grid grid-cols-7 gap-2">
-                        @foreach ($giorni as $n => $g)
-                            <div><span class="block text-center text-xs text-slate-500">{{ $g }}</span><input wire:model="ore.{{ $n }}" class="input !px-1 text-center" inputmode="decimal"></div>
-                        @endforeach
-                    </div>
-                    @error('ore.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                </div>
-                <x-ui.field label="Note" name="f.note" class="sm:col-span-2"><textarea wire:model="f.note" rows="2" class="input"></textarea></x-ui.field>
-                <div class="flex justify-end gap-2 sm:col-span-2">
-                    <button type="button" wire:click="$set('modal', false)" class="btn-soft">Annulla</button>
-                    <button class="btn-primary">Salva</button>
-                </div>
-            </form>
-        </x-ui.modal>
-    @endif
 
     @if ($modalPostazioni && $sedeCorrente)
         <div class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4">
