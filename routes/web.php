@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/clienti', Livewire\Clienti::class)->name('clienti');
         Route::get('/operatori', Livewire\Operatori::class)->name('operatori');
         Route::get('/messaggi', Livewire\Messaggi::class)->name('messaggi');
+        Route::get('/impostazioni', Livewire\Impostazioni::class)->name('impostazioni');
     });
 
     Route::middleware('ruolo:super_admin,admin')->group(function () {

@@ -140,16 +140,35 @@
 
         <section x-show="tab === 'servizio'" x-cloak class="card p-5 sm:p-6">
             <h2 class="mb-4 text-base font-bold text-slate-800">Servizio</h2>
-            <div class="grid gap-4 sm:grid-cols-4">
-                <x-ui.field label="Tariffa €/h" name="f.tariffa"><input wire:model="f.tariffa" class="input"></x-ui.field>
-                <div class="sm:col-span-3">
-                    <label class="label">Ore di servizio richieste per giorno</label>
-                    <div class="grid grid-cols-7 gap-2">
+            <div class="grid gap-6 lg:grid-cols-3">
+                <div>
+                    <x-ui.field label="Tariffa oraria" name="f.tariffa">
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-400">€</span>
+                            <input wire:model="f.tariffa" inputmode="decimal" placeholder="0,00" class="input !pl-7 !pr-12">
+                            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-400">/ ora</span>
+                        </div>
+                    </x-ui.field>
+                    <p class="mt-1 text-xs text-slate-500">Importo addebitato al cliente per ogni ora di servizio.</p>
+                </div>
+                <div class="lg:col-span-2">
+                    <div class="mb-2 flex items-center justify-between">
+                        <label class="label !mb-0">Ore di servizio per giorno</label>
+                        <span class="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">Totale settimana: <span x-text="Object.values($wire.ore).reduce((t, v) => t + (parseFloat(String(v).replace(',', '.')) || 0), 0).toLocaleString('it-IT')"></span> h</span>
+                    </div>
+                    <p class="mb-3 text-xs text-slate-500">Indica quante ore di presenza sono richieste in ciascun giorno. Lascia vuoto o 0 per i giorni senza servizio.</p>
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
                         @foreach ($giorni as $n => $g)
-                            <div><span class="block text-center text-xs text-slate-500">{{ $g }}</span><input wire:model="ore.{{ $n }}" class="input !px-1 text-center" inputmode="decimal"></div>
+                            <div class="rounded-xl p-3 text-center ring-1 {{ $n >= 6 ? 'bg-amber-50/60 ring-amber-100' : 'bg-sky-50/60 ring-sky-100' }}">
+                                <span class="block text-xs font-bold uppercase tracking-wide text-slate-600">{{ $g }}</span>
+                                <div class="relative mt-2">
+                                    <input wire:model.live.debounce.300ms="ore.{{ $n }}" inputmode="decimal" placeholder="0" class="input !px-1 !pr-5 text-center">
+                                    <span class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-slate-400">h</span>
+                                </div>
+                            </div>
                         @endforeach
                     </div>
-                    @error('ore.*') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    @error('ore.*') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
             </div>
         </section>
