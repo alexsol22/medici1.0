@@ -35,7 +35,8 @@ class ImpostazioniTest extends TestCase
             ->assertSee('Telegram')
             ->assertSee('OpenAI')
             ->assertSee('Altra integrazione')
-            ->assertSee('Impostazioni');
+            ->assertSee('Impostazioni')
+            ->assertDontSee(route('impostazioni'));
 
         $this->actingAs($this->utenteConRuolo('super_admin'))->get(route('impostazioni'))->assertOk();
         $this->actingAs($this->utenteConRuolo('cliente'))->get(route('impostazioni'))->assertForbidden();
