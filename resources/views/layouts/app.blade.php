@@ -5,6 +5,7 @@
         'Amministrazione' => [
             ['dashboard', 'Dashboard', 'M3 3v7h7V3H3zm11 0v7h7V3h-7zM3 14v7h7v-7H3zm11 0v7h7v-7h-7z', ['super_admin', 'admin']],
             ['amministratori', 'Amministratori', 'M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2m16 0v-2a4 4 0 00-3-3.87M12 7a4 4 0 11-8 0 4 4 0 018 0zm8 4a4 4 0 00-3-3.87', ['super_admin', 'admin']],
+            ['accessi', 'Log accessi', 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', ['super_admin', 'admin']],
             ['impostazioni', 'Impostazioni', 'M4 6h16M4 12h16M4 18h16M8 6v.01M16 12v.01M10 18v.01', ['super_admin', 'admin']],
         ],
         'Anagrafica' => [
@@ -27,6 +28,7 @@
     $paroleChiaveRicerca = [
         'dashboard' => 'dashboard panoramica riepilogo statistiche iniziale',
         'amministratori' => 'admin amministratori utenti account accessi',
+        'accessi' => 'log accessi utenti login indirizzo ip',
         'impostazioni' => 'configurazioni integrazioni api google maps sms whatsapp telegram openai chiavi',
         'clienti' => 'aziende anagrafica clienti',
         'sedi' => 'sedi filiali indirizzi posizioni',
