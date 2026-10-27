@@ -378,10 +378,111 @@ class TopSecurityTest extends TestCase
         $this->actingAs($this->utente('admin@topsecurity.test'));
         $sede = Sede::first();
         Livewire::test(Turni::class)
-            ->assertSee(now()->translatedFormat('F Y'))
-            ->call('cambiaMese', 1)->assertSet('mese', now()->startOfMonth()->addMonth()->toDateString())
+            ->assertSee(now()->locale('it')->translatedFormat('F Y'))
+            ->call('cambiaPeriodo', 1)->assertSet('mese', now()->startOfMonth()->addMonth()->toDateString())
             ->call('nuovoGiorno', '2030-05-10')->assertSet('modal', true)->assertSet('f.data_inizio', '2030-05-10')
             ->set('vista', 'lista')->assertSee('Orario');
+    }
+
+    public function test_calendario_mostra_turni_in_mese_settimana_e_giorno(): void
+    {
+        $this->actingAs($this->utente('admin@topsecurity.test'));
+        $oggi = today();
+
+        Livewire::test(Turni::class)
+            ->call('cambiaPeriodoCalendario', 'settimana')
+            ->assertSet('periodoCalendario', 'settimana')
+            ->call('cambiaPeriodo', 1)
+            ->assertSet('mese', $oggi->copy()->addWeek()->toDateString())
+            ->call('cambiaPeriodoCalendario', 'giorno')
+            ->assertSet('periodoCalendario', 'giorno')
+            ->call('cambiaPeriodo', 1)
+            ->assertSet('mese', $oggi->copy()->addWeek()->addDay()->toDateString())
+            ->call('oggi')
+            ->assertSet('mese', $oggi->toDateString())
+            ->call('cambiaPeriodoCalendario', 'mese')
+            ->assertSee($oggi->locale('it')->translatedFormat('F Y'));
+    }
+
+    public function test_selettore_calendario_cambia_il_periodo_in_base_alla_vista(): void
+    {
+        $this->actingAs($this->utente('admin@topsecurity.test'));
+        $meseSelezionato = today()->addMonths(2)->format('Y-m');
+        $settimanaSelezionata = today()->addWeeks(2)->toDateString();
+        $giornoSelezionato = today()->addDays(20)->toDateString();
+
+        Livewire::test(Turni::class)
+            ->assertSee('Scegli un mese')
+            ->set('selezioneMese', $meseSelezionato)
+            ->assertSet('mese', Carbon::parse($meseSelezionato.'-01')->toDateString())
+            ->call('cambiaPeriodoCalendario', 'settimana')
+            ->assertSee('Settimana del')
+            ->set('selezioneData', $settimanaSelezionata)
+            ->assertSet('mese', $settimanaSelezionata)
+            ->call('cambiaPeriodoCalendario', 'giorno')
+            ->assertSee('Scegli un giorno')
+            ->set('selezioneData', $giornoSelezionato)
+            ->assertSet('mese', $giornoSelezionato);
+    }
+
+    public function test_select2_mostra_suggerimenti_e_filtra_i_turni_solo_dopo_la_selezione(): void
+    {
+        Turno::query()->delete();
+        $sede = Sede::where('descrizione', 'Filiale Centro')->firstOrFail();
+        $altraSede = Sede::where('id', '!=', $sede->id)->firstOrFail();
+        $operatore = $this->utente('marco@topsecurity.test');
+        $altroOperatore = $this->utente('luca@topsecurity.test');
+        $inizio = today()->setTime(8, 0);
+
+        Turno::create([
+            'operatore_id' => $operatore->id, 'cliente_id' => $sede->cliente_id, 'sede_id' => $sede->id,
+            'inizio' => $inizio, 'fine' => $inizio->copy()->addHours(4), 'ore' => 4,
+        ]);
+        Turno::create([
+            'operatore_id' => $altroOperatore->id, 'cliente_id' => $altraSede->cliente_id, 'sede_id' => $altraSede->id,
+            'inizio' => $inizio->copy()->addHours(5), 'fine' => $inizio->copy()->addHours(9), 'ore' => 4,
+        ]);
+
+        Livewire::actingAs($this->utente('admin@topsecurity.test'))
+            ->test(Turni::class)
+            ->set('vista', 'lista')
+            ->set('da', today()->toDateString())
+            ->set('a', today()->toDateString())
+            ->assertDontSeeHtml('<select wire:model.live="filtroSede"')
+            ->assertDontSeeHtml('<select wire:model.live="filtroOperatore"')
+            ->assertSeeHtml('role="combobox"')
+            ->assertSeeHtml('x-model="ricerca"')
+            ->assertDontSeeHtml('wire:model="testoSede"')
+            ->assertDontSeeHtml('wire:model="testoOperatore"')
+            ->assertSee('Filiale Centro')
+            ->assertSee('Marco Rossi')
+            ->assertSee('Luca Bianchi')
+            ->call('selezionaSuggerimento', 'sede', $sede->id)
+            ->assertSee('Filiale Centro')
+            ->assertDontSeeHtml('<td class="td"><p>Galleria principale</p>')
+            ->call('rimuoviFiltro', 'sede')
+            ->call('selezionaSuggerimento', 'operatore', $operatore->id)
+            ->assertSee('Marco Rossi')
+            ->assertDontSeeHtml('<td class="td">Luca Bianchi</td>');
+    }
+
+    public function test_turno_del_calendario_si_apre_solo_per_utenti_autorizzati(): void
+    {
+        $turnoClienteUno = Turno::where('cliente_id', Sede::first()->cliente_id)->firstOrFail();
+
+        Livewire::actingAs($this->utente('admin@topsecurity.test'))
+            ->test(Turni::class)
+            ->call('mostraTurno', $turnoClienteUno->id)
+            ->assertSee('Dettaglio turno')
+            ->assertSee($turnoClienteUno->sede->descrizione)
+            ->assertSee($turnoClienteUno->operatore->nome_completo)
+            ->call('chiudiDettaglioTurno')
+            ->assertDontSee('Dettaglio turno');
+
+        Livewire::actingAs($this->utente('paola.romano@topsecurity.test'))
+            ->test(Turni::class)
+            ->call('mostraTurno', $turnoClienteUno->id)
+            ->assertStatus(404);
     }
 
     public function test_generatore_qr(): void

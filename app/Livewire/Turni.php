@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Calcoli;
 use App\Services\PianificazioneTurni;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -31,9 +32,17 @@ class Turni extends Component
 
     public string $vista = 'calendario';
 
+    public string $periodoCalendario = 'mese';
+
     public string $mese = '';
 
+    public string $selezioneMese = '';
+
+    public string $selezioneData = '';
+
     public bool $modal = false;
+
+    public ?int $turnoSelezionatoId = null;
 
     public array $f = [];
 
@@ -43,7 +52,8 @@ class Turni extends Component
 
     public function mount(): void
     {
-        $this->mese = now()->startOfMonth()->toDateString();
+        $this->mese = today()->toDateString();
+        $this->allineaSelezioniCalendario();
         $this->da = now()->startOfWeek()->toDateString();
         $this->a = now()->endOfWeek()->toDateString();
     }
@@ -55,14 +65,93 @@ class Turni extends Component
         }
     }
 
-    public function cambiaMese(int $delta): void
+    public function selezionaSuggerimento(string $tipo, int $id): void
     {
-        $this->mese = Carbon::parse($this->mese)->startOfMonth()->addMonths($delta)->toDateString();
+        abort_unless(in_array($tipo, ['sede', 'operatore'], true), 422);
+
+        if ($tipo === 'sede') {
+            $this->sediVisibili()->findOrFail($id);
+            abort_unless($this->query()->where('sede_id', $id)->exists(), 404);
+            $this->filtroSede = $id;
+
+            return;
+        }
+
+        abort_unless($this->query()->where('operatore_id', $id)->exists(), 404);
+        $this->filtroOperatore = $id;
+    }
+
+    public function rimuoviFiltro(string $tipo): void
+    {
+        abort_unless(in_array($tipo, ['sede', 'operatore'], true), 422);
+
+        if ($tipo === 'sede') {
+            $this->filtroSede = null;
+
+            return;
+        }
+
+        $this->filtroOperatore = null;
     }
 
     public function oggi(): void
     {
-        $this->mese = now()->startOfMonth()->toDateString();
+        $this->mese = today()->toDateString();
+        $this->allineaSelezioniCalendario();
+    }
+
+    public function cambiaPeriodoCalendario(string $periodo): void
+    {
+        abort_unless(in_array($periodo, ['mese', 'settimana', 'giorno'], true), 422);
+
+        $this->periodoCalendario = $periodo;
+        $this->allineaSelezioniCalendario();
+    }
+
+    public function updated(string $name): void
+    {
+        if ($name === 'selezioneMese') {
+            $this->validateOnly('selezioneMese', ['selezioneMese' => 'required|date_format:Y-m']);
+            $this->mese = Carbon::createFromFormat('!Y-m', $this->selezioneMese)->toDateString();
+            $this->allineaSelezioniCalendario();
+
+            return;
+        }
+
+        if ($name === 'selezioneData') {
+            $this->validateOnly('selezioneData', ['selezioneData' => 'required|date_format:Y-m-d']);
+            $this->mese = Carbon::parse($this->selezioneData)->toDateString();
+            $this->allineaSelezioniCalendario();
+        }
+    }
+
+    public function cambiaPeriodo(int $delta): void
+    {
+        $giorno = Carbon::parse($this->mese);
+
+        $this->mese = match ($this->periodoCalendario) {
+            'settimana' => $giorno->addWeeks($delta)->toDateString(),
+            'giorno' => $giorno->addDays($delta)->toDateString(),
+            default => $giorno->startOfMonth()->addMonths($delta)->toDateString(),
+        };
+        $this->allineaSelezioniCalendario();
+    }
+
+    public function vaiAlGiorno(string $data): void
+    {
+        $this->mese = Carbon::parse($data)->toDateString();
+        $this->periodoCalendario = 'giorno';
+        $this->allineaSelezioniCalendario();
+    }
+
+    public function mostraTurno(int $id): void
+    {
+        $this->turnoSelezionatoId = $this->query()->findOrFail($id)->id;
+    }
+
+    public function chiudiDettaglioTurno(): void
+    {
+        $this->turnoSelezionatoId = null;
     }
 
     public function nuovoGiorno(string $data): void
@@ -179,7 +268,14 @@ class Turni extends Component
         }
     }
 
-    private function query()
+    private function allineaSelezioniCalendario(): void
+    {
+        $riferimento = Carbon::parse($this->mese);
+        $this->selezioneMese = $riferimento->format('Y-m');
+        $this->selezioneData = $riferimento->toDateString();
+    }
+
+    private function query(): Builder
     {
         $u = auth()->user();
 
@@ -188,45 +284,92 @@ class Turni extends Component
             ->when(! $u->isOperatore(), fn ($q) => $q->whereIn('cliente_id', $this->clientiVisibili()->select('clienti.id')));
     }
 
+    private function applicaRicerca(Builder $query): Builder
+    {
+        return $query
+            ->when($this->filtroSede, fn (Builder $query) => $query->where('sede_id', $this->filtroSede))
+            ->when($this->filtroOperatore, fn (Builder $query) => $query->where('operatore_id', $this->filtroOperatore));
+    }
+
+    private function calendario(): array
+    {
+        $riferimento = Carbon::parse($this->mese);
+        $primo = $this->periodoCalendario === 'mese' ? $riferimento->copy()->startOfMonth() : $riferimento->copy();
+        [$da, $a] = match ($this->periodoCalendario) {
+            'settimana' => [$primo->copy()->startOfWeek(), $primo->copy()->endOfWeek()],
+            'giorno' => [$primo->copy()->startOfDay(), $primo->copy()->endOfDay()],
+            default => [$primo->copy()->startOfMonth()->startOfWeek(), $primo->copy()->endOfMonth()->endOfWeek()],
+        };
+        $perGiorno = $this->applicaRicerca($this->query()->with(['operatore', 'sede']))
+            ->whereBetween('inizio', [$da->copy()->startOfDay(), $a->copy()->endOfDay()])
+            ->orderBy('inizio')->get()
+            ->groupBy(fn ($t) => $t->inizio->toDateString());
+
+        return ['primo' => $primo, 'da' => $da, 'a' => $a, 'turni' => $perGiorno];
+    }
+
     public function render(PianificazioneTurni $piano)
     {
-        $filtri = fn ($q) => $q
-            ->when($this->filtroSede, fn ($q) => $q->where('sede_id', $this->filtroSede))
-            ->when($this->filtroOperatore, fn ($q) => $q->where('operatore_id', $this->filtroOperatore));
-
         $turni = null;
-        $calendario = null;
         if ($this->vista === 'lista') {
-            $turni = $filtri($this->query()->with(['operatore', 'sede.cliente']))
+            $turni = $this->applicaRicerca($this->query()->with(['operatore', 'sede.cliente']))
                 ->when($this->da, fn ($q) => $q->where('inizio', '>=', Carbon::parse($this->da)->startOfDay()))
                 ->when($this->a, fn ($q) => $q->where('inizio', '<=', Carbon::parse($this->a)->endOfDay()))
                 ->orderBy('inizio')->paginate(15);
-        } else {
-            $primo = Carbon::parse($this->mese)->startOfMonth();
-            $da = $primo->copy()->startOfWeek();
-            $a = $primo->copy()->endOfMonth()->endOfWeek();
-            $perGiorno = $filtri($this->query()->with(['operatore', 'sede']))
-                ->whereBetween('inizio', [$da, $a])->orderBy('inizio')->get()
-                ->groupBy(fn ($t) => $t->inizio->toDateString());
-            $calendario = ['primo' => $primo, 'da' => $da, 'a' => $a, 'turni' => $perGiorno];
         }
+        $calendario = $this->vista === 'lista' ? null : $this->calendario();
+
+        $turnoDettaglio = $this->turnoSelezionatoId
+            ? $this->query()->with(['operatore', 'sede.cliente'])->findOrFail($this->turnoSelezionatoId)
+            : null;
 
         $disponibili = collect();
         $sediForm = collect();
         if ($this->modal) {
             $sediForm = $this->sediVisibili()->where('cliente_id', $this->f['cliente_id'] ?: 0)->orderBy('descrizione')->get(['id', 'descrizione']);
-            if ($iv = $this->intervallo()) {
-                if ($iv[1]->gt($iv[0])) {
-                    $disponibili = $piano->operatoriDisponibili($iv[0], $iv[1], $this->f['cliente_id'] ?: null);
-                }
+            $intervallo = $this->intervallo();
+            if ($intervallo !== null && $intervallo[1]->gt($intervallo[0])) {
+                $disponibili = $piano->operatoriDisponibili($intervallo[0], $intervallo[1], $this->f['cliente_id'] ?: null);
             }
         }
+
+        $suggerimentiSedi = $this->sediVisibili()
+            ->whereIn('id', $this->query()->select('sede_id')->distinct())
+            ->orderBy('descrizione')
+            ->get(['id', 'descrizione', 'citta'])
+            ->map(fn ($sede) => [
+                'id' => $sede->id,
+                'label' => $sede->descrizione,
+                'detail' => $sede->citta,
+                'search' => $sede->descrizione.' '.$sede->citta,
+            ])
+            ->values();
+
+        $suggerimentiOperatori = User::query()
+            ->whereIn('id', $this->query()->select('operatore_id')->distinct())
+            ->orderBy('cognome')
+            ->get(['id', 'name', 'cognome', 'email'])
+            ->map(fn ($operatore) => [
+                'id' => $operatore->id,
+                'label' => $operatore->nome_completo,
+                'detail' => $operatore->email,
+                'search' => $operatore->nome_completo.' '.$operatore->email,
+            ])
+            ->values();
+
+        $sedeSelezionata = $this->filtroSede ? $this->sediVisibili()->find($this->filtroSede) : null;
+        $operatoreSelezionato = $this->filtroOperatore
+            ? $this->query()->where('operatore_id', $this->filtroOperatore)->with('operatore')->first()?->operatore
+            : null;
 
         return view('livewire.turni', [
             'turni' => $turni,
             'calendario' => $calendario,
-            'sedi' => $this->sediVisibili()->orderBy('descrizione')->get(['id', 'descrizione']),
-            'operatori' => User::where('ruolo', 'operatore')->orderBy('cognome')->get(),
+            'turnoDettaglio' => $turnoDettaglio,
+            'suggerimentiSedi' => $suggerimentiSedi,
+            'suggerimentiOperatori' => $suggerimentiOperatori,
+            'sedeSelezionata' => $sedeSelezionata,
+            'operatoreSelezionato' => $operatoreSelezionato,
             'clienti' => $this->clientiVisibili()->orderBy('ragione_sociale')->get(['id', 'ragione_sociale']),
             'sediForm' => $sediForm,
             'disponibili' => $disponibili,

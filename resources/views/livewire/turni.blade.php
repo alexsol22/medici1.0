@@ -7,8 +7,84 @@
                 <div><label class="label">Al</label><input type="date" wire:model.live="a" class="input"></div>
             @endif
             @unless (auth()->user()->isOperatore())
-                <div><label class="label">Sede</label><select wire:model.live="filtroSede" class="input"><option value="">Tutte</option>@foreach ($sedi as $s)<option value="{{ $s->id }}">{{ $s->descrizione }}</option>@endforeach</select></div>
-                <div><label class="label">Operatore</label><select wire:model.live="filtroOperatore" class="input"><option value="">Tutti</option>@foreach ($operatori as $o)<option value="{{ $o->id }}">{{ $o->nome_completo }}</option>@endforeach</select></div>
+                <div class="relative space-y-1" x-data="{
+                    aperto: false,
+                    ricerca: '',
+                    opzioni: @js($suggerimentiSedi),
+                    filtrati() {
+                        const termine = this.ricerca.trim().toLocaleLowerCase('it');
+                        return this.opzioni.filter(opzione => opzione.search.toLocaleLowerCase('it').includes(termine)).slice(0, 20);
+                    },
+                    seleziona(id) {
+                        $wire.selezionaSuggerimento('sede', id);
+                        this.aperto = false;
+                        this.ricerca = '';
+                    }
+                }" @click.outside="aperto = false" @keydown.escape.window="aperto = false">
+                    <label class="label" for="filtro-sede">Sede</label>
+                    <button id="filtro-sede" type="button" role="combobox" aria-controls="suggerimenti-sedi" :aria-expanded="aperto" @click="aperto = !aperto; if (aperto) $nextTick(() => $refs.ricerca.focus())" class="input flex items-center justify-between text-left">
+                        <span class="{{ $sedeSelezionata ? 'text-slate-800' : 'text-slate-500' }}">{{ $sedeSelezionata?->descrizione ?? 'Tutte le sedi' }}</span>
+                        <span aria-hidden="true" class="text-slate-400">⌄</span>
+                    </button>
+                    <div x-cloak x-show="aperto" class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-sky-100 bg-white shadow-lg">
+                        <div class="border-b border-sky-100 p-2">
+                            <input x-ref="ricerca" x-model="ricerca" type="search" aria-label="Cerca una sede" placeholder="Digita per cercare…" @keydown.enter.prevent="const opzione = filtrati()[0]; if (opzione) seleziona(opzione.id)" class="input">
+                        </div>
+                        <ul id="suggerimenti-sedi" role="listbox" class="max-h-60 overflow-y-auto p-1">
+                            <li role="option">
+                                <button type="button" @click="$wire.rimuoviFiltro('sede'); aperto = false; ricerca = ''" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-500 hover:bg-sky-50">Tutte le sedi</button>
+                            </li>
+                            <template x-for="opzione in filtrati()" :key="opzione.id">
+                                <li role="option">
+                                    <button type="button" @click="seleziona(opzione.id)" class="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-sky-50">
+                                        <span class="block font-semibold text-slate-800" x-text="opzione.label"></span>
+                                        <span class="block text-xs text-slate-500" x-text="opzione.detail"></span>
+                                    </button>
+                                </li>
+                            </template>
+                            <li x-show="filtrati().length === 0" class="px-3 py-2 text-sm text-slate-500">Nessuna sede trovata.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="relative space-y-1" x-data="{
+                    aperto: false,
+                    ricerca: '',
+                    opzioni: @js($suggerimentiOperatori),
+                    filtrati() {
+                        const termine = this.ricerca.trim().toLocaleLowerCase('it');
+                        return this.opzioni.filter(opzione => opzione.search.toLocaleLowerCase('it').includes(termine)).slice(0, 20);
+                    },
+                    seleziona(id) {
+                        $wire.selezionaSuggerimento('operatore', id);
+                        this.aperto = false;
+                        this.ricerca = '';
+                    }
+                }" @click.outside="aperto = false" @keydown.escape.window="aperto = false">
+                    <label class="label" for="filtro-operatore">Operatore</label>
+                    <button id="filtro-operatore" type="button" role="combobox" aria-controls="suggerimenti-operatori" :aria-expanded="aperto" @click="aperto = !aperto; if (aperto) $nextTick(() => $refs.ricerca.focus())" class="input flex items-center justify-between text-left">
+                        <span class="{{ $operatoreSelezionato ? 'text-slate-800' : 'text-slate-500' }}">{{ $operatoreSelezionato?->nome_completo ?? 'Tutti gli operatori' }}</span>
+                        <span aria-hidden="true" class="text-slate-400">⌄</span>
+                    </button>
+                    <div x-cloak x-show="aperto" class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-sky-100 bg-white shadow-lg">
+                        <div class="border-b border-sky-100 p-2">
+                            <input x-ref="ricerca" x-model="ricerca" type="search" aria-label="Cerca un operatore" placeholder="Digita per cercare…" @keydown.enter.prevent="const opzione = filtrati()[0]; if (opzione) seleziona(opzione.id)" class="input">
+                        </div>
+                        <ul id="suggerimenti-operatori" role="listbox" class="max-h-60 overflow-y-auto p-1">
+                            <li role="option">
+                                <button type="button" @click="$wire.rimuoviFiltro('operatore'); aperto = false; ricerca = ''" class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-500 hover:bg-sky-50">Tutti gli operatori</button>
+                            </li>
+                            <template x-for="opzione in filtrati()" :key="opzione.id">
+                                <li role="option">
+                                    <button type="button" @click="seleziona(opzione.id)" class="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-sky-50">
+                                        <span class="block font-semibold text-slate-800" x-text="opzione.label"></span>
+                                        <span class="block text-xs text-slate-500" x-text="opzione.detail"></span>
+                                    </button>
+                                </li>
+                            </template>
+                            <li x-show="filtrati().length === 0" class="px-3 py-2 text-sm text-slate-500">Nessun operatore trovato.</li>
+                        </ul>
+                    </div>
+                </div>
             @endunless
         </div>
         <div class="flex items-center gap-2">
@@ -21,33 +97,70 @@
     </div>
 
     @if ($vista === 'calendario')
-        <div class="flex items-center gap-2">
-            <button wire:click="cambiaMese(-1)" class="btn-soft !px-3">←</button>
-            <span class="min-w-40 text-center text-base font-bold capitalize text-slate-800">{{ $calendario['primo']->translatedFormat('F Y') }}</span>
-            <button wire:click="cambiaMese(1)" class="btn-soft !px-3">→</button>
-            <button wire:click="oggi" class="btn-soft">Oggi</button>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="inline-flex w-fit rounded-xl bg-white p-1 ring-1 ring-sky-200">
+                @foreach (['mese' => 'Mese', 'settimana' => 'Settimana', 'giorno' => 'Giorno'] as $periodo => $etichetta)
+                    <button wire:click="cambiaPeriodoCalendario('{{ $periodo }}')" class="rounded-lg px-3 py-1.5 text-sm font-semibold {{ $periodoCalendario === $periodo ? 'bg-sky-500 text-white' : 'text-slate-600' }}">{{ $etichetta }}</button>
+                @endforeach
+            </div>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+                @if ($periodoCalendario === 'mese')
+                    <div>
+                        <label for="selezione-mese" class="sr-only">Scegli un mese</label>
+                        <input id="selezione-mese" type="month" wire:model.live="selezioneMese" class="input w-auto">
+                    </div>
+                @elseif ($periodoCalendario === 'settimana')
+                    <div>
+                        <label for="selezione-data" class="sr-only">Scegli una data della settimana</label>
+                        <input id="selezione-data" type="date" wire:model.live="selezioneData" class="input w-auto" aria-label="Settimana del">
+                    </div>
+                @else
+                    <div>
+                        <label for="selezione-data" class="sr-only">Scegli un giorno</label>
+                        <input id="selezione-data" type="date" wire:model.live="selezioneData" class="input w-auto">
+                    </div>
+                @endif
+                <button wire:click="cambiaPeriodo(-1)" class="btn-soft !px-3" aria-label="Periodo precedente">←</button>
+                <span class="min-w-48 text-center text-base font-bold capitalize text-slate-800">
+                    @if ($periodoCalendario === 'mese')
+                        {{ $calendario['primo']->locale('it')->translatedFormat('F Y') }}
+                    @elseif ($periodoCalendario === 'settimana')
+                        {{ $calendario['da']->locale('it')->translatedFormat('d M') }} – {{ $calendario['a']->locale('it')->translatedFormat('d M Y') }}
+                    @else
+                        {{ $calendario['da']->locale('it')->translatedFormat('l d F Y') }}
+                    @endif
+                </span>
+                <button wire:click="cambiaPeriodo(1)" class="btn-soft !px-3" aria-label="Periodo successivo">→</button>
+                <button wire:click="oggi" class="btn-soft">Oggi</button>
+            </div>
         </div>
         <div class="card overflow-hidden">
-            <div class="grid grid-cols-7 border-b border-sky-100 bg-sky-50/60 text-center">
-                @foreach (['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'] as $g)<div class="py-2 text-xs font-semibold uppercase text-slate-500">{{ $g }}</div>@endforeach
+            <div class="grid {{ $periodoCalendario === 'giorno' ? 'grid-cols-1' : 'grid-cols-7' }} border-b border-sky-100 bg-sky-50/60 text-center">
+                @if ($periodoCalendario === 'giorno')
+                    <div class="py-2 text-xs font-semibold uppercase text-slate-500">{{ $calendario['da']->locale('it')->translatedFormat('l d/m') }}</div>
+                @else
+                    @foreach (['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'] as $g)<div class="py-2 text-xs font-semibold uppercase text-slate-500">{{ $g }}</div>@endforeach
+                @endif
             </div>
-            <div class="grid grid-cols-7">
+            <div class="grid {{ $periodoCalendario === 'giorno' ? 'grid-cols-1' : 'grid-cols-7' }}">
                 @for ($d = $calendario['da']->copy(); $d->lte($calendario['a']); $d->addDay())
                     @php($k = $d->toDateString())
                     @php($giorno = $calendario['turni']->get($k, collect()))
-                    <div wire:key="g{{ $k }}" class="group min-h-24 border-b border-r border-sky-50 p-1 sm:min-h-32 sm:p-1.5 {{ $d->month !== $calendario['primo']->month ? 'bg-slate-50/60' : '' }}">
+                    <div wire:key="g{{ $k }}" class="group min-h-24 border-b border-r border-sky-50 p-1 sm:min-h-32 sm:p-1.5 {{ $periodoCalendario === 'giorno' ? 'min-h-48 sm:min-h-64' : '' }} {{ $periodoCalendario === 'mese' && $d->month !== $calendario['primo']->month ? 'bg-slate-50/60' : '' }}">
                         <div class="mb-1 flex items-center justify-between">
-                            <span class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold {{ $d->isToday() ? 'bg-sky-500 text-white' : ($d->month !== $calendario['primo']->month ? 'text-slate-400' : 'text-slate-700') }}">{{ $d->day }}</span>
+                            <button wire:click="vaiAlGiorno('{{ $k }}')" class="flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-semibold {{ $d->isToday() ? 'bg-sky-500 text-white' : ($periodoCalendario === 'mese' && $d->month !== $calendario['primo']->month ? 'text-slate-400' : 'text-slate-700') }}" aria-label="Mostra il {{ $d->locale('it')->translatedFormat('d F Y') }}">{{ $d->day }}</button>
                             @if ($staff)<button wire:click="nuovoGiorno('{{ $k }}')" class="hidden h-5 w-5 rounded text-sky-600 hover:bg-sky-100 group-hover:block" title="Aggiungi turno">+</button>@endif
                         </div>
                         <div class="space-y-1">
-                            @foreach ($giorno->take(3) as $t)
+                            @foreach ($periodoCalendario === 'mese' ? $giorno->take(3) : $giorno as $t)
                                 @php($c = ['programmato' => 'bg-sky-100 text-sky-800', 'in_corso' => 'bg-emerald-100 text-emerald-800', 'completato' => 'bg-teal-100 text-teal-800', 'non_timbrato' => 'bg-amber-100 text-amber-800', 'non_completato' => 'bg-orange-100 text-orange-800', 'non_eseguito' => 'bg-rose-100 text-rose-800'][$t->statoEffettivo()])
-                                <div class="truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-tight {{ $c }}" title="{{ $t->sede->descrizione }} · {{ $t->operatore->nome_completo }}">
+                                <button type="button" wire:click="mostraTurno({{ $t->id }})" wire:key="turno-{{ $t->id }}" class="block w-full truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight hover:ring-1 hover:ring-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 {{ $c }}" title="{{ $t->sede->descrizione }} · {{ $t->operatore->nome_completo }}" aria-label="Apri turno delle {{ $t->inizio->format('H:i') }} presso {{ $t->sede->descrizione }} per {{ $t->operatore->nome_completo }}">
                                     <span class="font-bold">{{ $t->inizio->format('H:i') }}</span> <span class="hidden sm:inline">{{ $t->operatore->cognome ?: $t->operatore->name }}</span>
-                                </div>
+                                </button>
                             @endforeach
-                            @if ($giorno->count() > 3)<p class="px-1 text-[11px] font-semibold text-sky-600">+{{ $giorno->count() - 3 }} altri</p>@endif
+                            @if ($periodoCalendario === 'mese' && $giorno->count() > 3)
+                                <button wire:click="vaiAlGiorno('{{ $k }}')" class="px-1 text-[11px] font-semibold text-sky-600 hover:underline">+{{ $giorno->count() - 3 }} altri</button>
+                            @endif
                         </div>
                     </div>
                 @endfor
@@ -63,7 +176,7 @@
                 @forelse ($turni as $t)
                     @php([$et, $cl] = \App\Models\Turno::etichette()[$t->statoEffettivo()])
                     <tr wire:key="t{{ $t->id }}" class="hover:bg-sky-50/40">
-                        <td class="td whitespace-nowrap font-medium text-slate-800">{{ $t->inizio->translatedFormat('D d/m/Y') }}</td>
+                        <td class="td whitespace-nowrap font-medium text-slate-800">{{ $t->inizio->locale('it')->translatedFormat('D d/m/Y') }}</td>
                         <td class="td whitespace-nowrap">{{ $t->inizio->format('H:i') }}–{{ $t->fine->format('H:i') }}</td>
                         <td class="td"><p>{{ $t->sede->descrizione }}</p><p class="text-xs text-slate-500">{{ $t->sede->cliente->ragione_sociale }}</p></td>
                         <td class="td">{{ $t->operatore->nome_completo }}</td>
@@ -115,6 +228,26 @@
                     <button class="btn-primary">Crea turno</button>
                 </div>
             </form>
+        </x-ui.modal>
+    @endif
+
+    @if ($turnoDettaglio)
+        @php([$etichettaStato, $classeStato] = \App\Models\Turno::etichette()[$turnoDettaglio->statoEffettivo()])
+        <x-ui.modal title="Dettaglio turno" close="chiudiDettaglioTurno">
+            <dl class="grid gap-4 sm:grid-cols-2">
+                <div><dt class="text-xs font-semibold uppercase text-slate-500">Data</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->inizio->locale('it')->translatedFormat('l d F Y') }}</dd></div>
+                <div><dt class="text-xs font-semibold uppercase text-slate-500">Orario</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->inizio->format('H:i') }}–{{ $turnoDettaglio->fine->format('H:i') }}</dd></div>
+                <div><dt class="text-xs font-semibold uppercase text-slate-500">Sede</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->sede->descrizione }}</dd></div>
+                <div><dt class="text-xs font-semibold uppercase text-slate-500">Cliente</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->sede->cliente->ragione_sociale }}</dd></div>
+                <div><dt class="text-xs font-semibold uppercase text-slate-500">Operatore</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->operatore->nome_completo }}</dd></div>
+                <div><dt class="text-xs font-semibold uppercase text-slate-500">Stato</dt><dd class="mt-1"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $classeStato }}">{{ $etichettaStato }}</span></dd></div>
+                <div><dt class="text-xs font-semibold uppercase text-slate-500">Ore previste</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->ore }}</dd></div>
+                @if ($turnoDettaglio->ore_lavorate !== null)
+                    <div><dt class="text-xs font-semibold uppercase text-slate-500">Ore lavorate</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->ore_lavorate }}</dd></div>
+                @endif
+                <div class="sm:col-span-2"><dt class="text-xs font-semibold uppercase text-slate-500">Note</dt><dd class="mt-1 whitespace-pre-line text-sm text-slate-700">{{ $turnoDettaglio->note ?: 'Nessuna nota' }}</dd></div>
+            </dl>
+            <div class="mt-5 flex justify-end"><button type="button" wire:click="chiudiDettaglioTurno" class="btn-soft">Chiudi</button></div>
         </x-ui.modal>
     @endif
 </div>

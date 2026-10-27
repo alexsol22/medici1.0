@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Proposta commerciale | Security Scanner</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #142c2c;
+            --muted: #617474;
+            --line: #dce6e2;
+            --paper: #ffffff;
+            --canvas: #f2f6f3;
+            --green: #16745e;
+            --green-dark: #0d5948;
+            --green-soft: #e7f3ed;
+            --gold: #eabf70;
+            --shadow: 0 22px 60px rgb(28 57 49 / 9%);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background:
+                radial-gradient(ellipse at 85% 0%, rgb(208 231 215 / 55%), transparent 34rem),
+                var(--canvas);
+            color: var(--ink);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        .page {
+            width: min(1120px, calc(100% - 48px));
+            margin: 0 auto;
+            padding: 32px 0 64px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 46px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--ink);
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: .12em;
+        }
+
+        .brand-mark {
+            display: grid;
+            width: 38px;
+            height: 38px;
+            place-items: center;
+            border-radius: 12px;
+            background: var(--green);
+            color: white;
+            font-size: 16px;
+            letter-spacing: 0;
+        }
+
+        .topbar-note {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 650;
+            letter-spacing: .09em;
+            text-transform: uppercase;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 240px;
+            align-items: end;
+            gap: 36px;
+            margin-bottom: 32px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+            color: var(--green-dark);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+        }
+
+        .eyebrow::before {
+            width: 22px;
+            height: 2px;
+            background: var(--green);
+            content: "";
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin-top: 0;
+        }
+
+        h1 {
+            max-width: 740px;
+            margin-bottom: 14px;
+            font-size: clamp(38px, 5vw, 62px);
+            font-weight: 760;
+            letter-spacing: -.055em;
+            line-height: 1.03;
+        }
+
+        .hero-copy {
+            max-width: 650px;
+            margin-bottom: 0;
+            color: var(--muted);
+            font-size: 17px;
+        }
+
+        .proposal-meta {
+            padding: 18px 20px;
+            border: 1px solid rgb(220 230 226 / 85%);
+            border-radius: 16px;
+            background: rgb(255 255 255 / 68%);
+        }
+
+        .proposal-meta span,
+        .proposal-meta strong {
+            display: block;
+        }
+
+        .proposal-meta span {
+            margin-bottom: 4px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+        }
+
+        .proposal-meta strong {
+            font-size: 14px;
+        }
+
+        .choice-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 36px 0 16px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+
+        .choice-label::after {
+            height: 1px;
+            flex: 1;
+            background: var(--line);
+            content: "";
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: stretch;
+            gap: 20px;
+        }
+
+        .option {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            padding: 28px;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: var(--paper);
+            box-shadow: var(--shadow);
+        }
+
+        .option-primary {
+            border-color: #a8cfc1;
+        }
+
+        .option-primary::before {
+            position: absolute;
+            inset: 0 0 auto;
+            height: 5px;
+            background: var(--green);
+            content: "";
+        }
+
+        .option-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+
+        .option-number {
+            display: grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            color: var(--green-dark);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .option-badge {
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--green-soft);
+            color: var(--green-dark);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+        }
+
+        .option h2 {
+            margin-bottom: 7px;
+            font-size: 23px;
+            letter-spacing: -.035em;
+            line-height: 1.2;
+        }
+
+        .option-intro {
+            min-height: 48px;
+            margin-bottom: 20px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .price {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .price strong {
+            font-size: 43px;
+            font-weight: 780;
+            letter-spacing: -.06em;
+            line-height: 1;
+        }
+
+        .price span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .payment-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 22px;
+        }
+
+        .payment-step {
+            padding: 12px 13px;
+            border-radius: 12px;
+            background: #f4f7f5;
+        }
+
+        .payment-step strong,
+        .payment-step span {
+            display: block;
+        }
+
+        .payment-step strong {
+            margin-bottom: 2px;
+            font-size: 17px;
+            letter-spacing: -.02em;
+        }
+
+        .payment-step span {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .rule {
+            height: 1px;
+            margin: 0 0 20px;
+            border: 0;
+            background: var(--line);
+        }
+
+        .includes-title {
+            margin-bottom: 10px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .check-list {
+            display: grid;
+            gap: 10px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .check-list li {
+            position: relative;
+            padding-left: 23px;
+            color: #344c4a;
+            font-size: 13px;
+        }
+
+        .check-list li::before {
+            position: absolute;
+            top: .28em;
+            left: 0;
+            display: grid;
+            width: 15px;
+            height: 15px;
+            place-items: center;
+            border-radius: 50%;
+            background: var(--green-soft);
+            color: var(--green-dark);
+            content: "✓";
+            font-size: 10px;
+            font-weight: 900;
+        }
+
+        .option-note {
+            margin-top: auto;
+            padding-top: 22px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .contribution {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 0 0 20px;
+            padding: 15px;
+            border: 1px solid #e7dfcb;
+            border-radius: 14px;
+            background: #fbf8f0;
+        }
+
+        .contribution strong {
+            flex: 0 0 auto;
+            font-size: 28px;
+            letter-spacing: -.05em;
+        }
+
+        .contribution span {
+            color: #70644d;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .partnership-outcome {
+            margin: 0 0 18px;
+            padding: 16px;
+            border-left: 3px solid var(--gold);
+            border-radius: 0 12px 12px 0;
+            background: #fcfaf5;
+            color: #4f4b3e;
+            font-size: 13px;
+        }
+
+        .section {
+            margin-top: 22px;
+            padding: 25px 28px;
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            background: rgb(255 255 255 / 88%);
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+
+        .section-heading h2 {
+            margin-bottom: 0;
+            font-size: 20px;
+            letter-spacing: -.03em;
+        }
+
+        .section-heading p {
+            max-width: 440px;
+            margin-bottom: 0;
+            color: var(--muted);
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .feature {
+            min-height: 88px;
+            padding: 14px;
+            border: 1px solid #e7eeea;
+            border-radius: 13px;
+            background: #f8faf8;
+        }
+
+        .feature strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .feature span {
+            display: block;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .feature-integrations {
+            border-color: #cce4d9;
+            background: #f0f8f3;
+        }
+
+        .process {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0;
+        }
+
+        .process-step {
+            position: relative;
+            padding: 4px 20px 4px 0;
+        }
+
+        .process-step:not(:last-child)::after {
+            position: absolute;
+            top: 17px;
+            right: 10px;
+            left: 44px;
+            height: 1px;
+            background: var(--line);
+            content: "";
+        }
+
+        .process-number {
+            display: grid;
+            width: 34px;
+            height: 34px;
+            margin-bottom: 12px;
+            place-items: center;
+            border: 1px solid #b9d8ca;
+            border-radius: 50%;
+            background: var(--green-soft);
+            color: var(--green-dark);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .process-step h3 {
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .process-step p {
+            max-width: 190px;
+            margin-bottom: 0;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .costs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .costs p {
+            margin-bottom: 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .cost-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .cost-pills span {
+            padding: 6px 10px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: #f8faf8;
+            color: #455d59;
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .costs-note {
+            margin-top: 12px;
+        }
+
+        .fine-print {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-top: 22px;
+            padding: 19px 22px;
+            border-radius: 15px;
+            background: #eaf0ec;
+        }
+
+        .fine-print p {
+            margin: 0;
+            color: #526762;
+            font-size: 11px;
+        }
+
+        .fine-print strong {
+            color: var(--ink);
+        }
+
+        .footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            margin-top: 25px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .print-button {
+            padding: 10px 15px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--green);
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .print-button:hover {
+            background: var(--green-dark);
+        }
+
+        @media (max-width: 760px) {
+            .page {
+                width: min(100% - 28px, 560px);
+                padding-top: 20px;
+            }
+
+            .topbar {
+                margin-bottom: 35px;
+            }
+
+            .topbar-note {
+                font-size: 9px;
+                text-align: right;
+            }
+
+            .hero {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .proposal-meta {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+            }
+
+            .options {
+                grid-template-columns: 1fr;
+            }
+
+            .option-intro {
+                min-height: 0;
+            }
+
+            .feature-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .section-heading {
+                align-items: start;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .section-heading p {
+                text-align: left;
+            }
+
+            .process {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 22px 10px;
+            }
+
+            .process-step:nth-child(2)::after {
+                display: none;
+            }
+
+            .costs,
+            .fine-print {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .option,
+            .section {
+                padding: 21px;
+            }
+
+            .price strong {
+                font-size: 38px;
+            }
+
+            .payment-split {
+                grid-template-columns: 1fr;
+            }
+
+            .process-step:not(:last-child)::after {
+                right: 2px;
+                left: 42px;
+            }
+
+            .process-step:nth-child(2)::after {
+                display: none;
+            }
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 12mm;
+            }
+
+            body {
+                background: #fff;
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+
+            .page {
+                width: 100%;
+                padding: 0;
+            }
+
+            .topbar {
+                margin-bottom: 24px;
+            }
+
+            .hero {
+                grid-template-columns: 1fr 190px;
+                gap: 22px;
+            }
+
+            h1 {
+                font-size: 40px;
+            }
+
+            .options {
+                gap: 12px;
+            }
+
+            .option {
+                padding: 20px;
+                box-shadow: none;
+                break-inside: avoid;
+            }
+
+            .section,
+            .fine-print {
+                break-inside: avoid;
+            }
+
+            .section {
+                margin-top: 14px;
+                padding: 18px 20px;
+            }
+
+            .print-button {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <header class="topbar">
+            <div class="brand">
+                <span class="brand-mark" aria-hidden="true">S</span>
+                <span>SECURITY SCANNER</span>
+            </div>
+            <div class="topbar-note">Proposta commerciale · 26 ottobre 2026</div>
+        </header>
+
+        <section class="hero" aria-labelledby="page-title">
+            <div>
+                <div class="eyebrow">Un progetto, due possibili percorsi</div>
+                <h1 id="page-title">Portiamo l'app al prossimo livello.</h1>
+                <p class="hero-copy">
+                    Due formule per completare e lanciare la piattaforma: una con prezzo e consegna definiti,
+                    l'altra con un investimento iniziale e una collaborazione sui risultati.
+                </p>
+            </div>
+            <aside class="proposal-meta" aria-label="Destinatario della proposta">
+                <div>
+                    <span>Proposta preparata per</span>
+                    <strong>[Nome cliente]</strong>
+                </div>
+                <div>
+                    <span>Oggetto</span>
+                    <strong>Applicativo web</strong>
+                </div>
+            </aside>
+        </section>
+
+        <div class="choice-label">Scegliamo insieme la formula</div>
+
+        <section class="options" aria-label="Opzioni commerciali">
+            <article class="option option-primary">
+                <div class="option-top">
+                    <span class="option-number">01</span>
+                    <span class="option-badge">Acquisto e consegna</span>
+                </div>
+                <h2>Una soluzione pronta da usare</h2>
+                <p class="option-intro">Sviluppo, configurazione e pubblicazione dell'app, con consegna del codice sorgente.</p>
+
+                <div class="price">
+                    <strong>2.600 €</strong>
+                    <span>totali</span>
+                </div>
+
+                <div class="payment-split" aria-label="Piano di pagamento">
+                    <div class="payment-step">
+                        <strong>600 €</strong>
+                        <span>all'avvio dei lavori</span>
+                    </div>
+                    <div class="payment-step">
+                        <strong>2.000 €</strong>
+                        <span>alla consegna finale</span>
+                    </div>
+                </div>
+
+                <hr class="rule">
+                <h3 class="includes-title">Incluso nel progetto</h3>
+                <ul class="check-list">
+                    <li>Configurazione del server e messa in produzione, fino alla pubblicazione.</li>
+                    <li>Verifica e test delle funzionalità concordate prima della consegna.</li>
+                    <li>Integrazione WhatsApp; messaggi e costi del servizio restano esclusi.</li>
+                    <li>Configurazione Stripe, se si sceglie il modello ad abbonamento o la rivendita a terzi.</li>
+                    <li>Funzionalità esistenti mantenute e miglioramenti definiti insieme.</li>
+                    <li>Codice sorgente e 31 giorni di manutenzione correttiva dalla consegna.</li>
+                </ul>
+
+                <p class="option-note">
+                    Consegna stimata in <strong>40–50 giorni</strong> dall'avvio, compatibilmente con la disponibilità
+                    di materiali, accessi e approvazioni. Dopo i 31 giorni, manutenzione facoltativa: <strong>600 €/anno</strong>.
+                </p>
+            </article>
+
+            <article class="option">
+                <div class="option-top">
+                    <span class="option-number">02</span>
+                    <span class="option-badge">Sviluppo in partnership</span>
+                </div>
+                <h2>Costruiamo e lanciamo insieme</h2>
+                <p class="option-intro">Un investimento iniziale per il mio lavoro, poi una collaborazione commerciale sui risultati.</p>
+
+                <div class="contribution">
+                    <strong>600 €</strong>
+                    <span>per le ore di sviluppo iniziali e le attività concordate per avviare il progetto</span>
+                </div>
+
+                <div class="partnership-outcome">
+                    Al termine della fase iniziale, avviamo insieme la partnership e condividiamo gli utili secondo
+                    percentuali e regole che definiamo e mettiamo per iscritto prima della commercializzazione.
+                </div>
+
+                <hr class="rule">
+                <h3 class="includes-title">Ruoli e contributi</h3>
+                <ul class="check-list">
+                    <li><strong>Io:</strong> sviluppo dell'app e supporto alle decisioni sul prodotto.</li>
+                    <li><strong>Il cliente:</strong> spese di server, dominio, messaggistica e servizi esterni.</li>
+                    <li><strong>Insieme:</strong> valutazione delle priorità, del lancio e delle opportunità commerciali.</li>
+                    <li>La percentuale sugli utili e le modalità di rendicontazione si concordano prima del lancio.</li>
+                </ul>
+
+                <p class="option-note">
+                    I 600 € coprono il lavoro iniziale concordato: non stabiliscono da soli quote, proprietà del codice
+                    o una percentuale sui ricavi.
+                </p>
+            </article>
+        </section>
+
+        <section class="section" aria-labelledby="features-title">
+            <div class="section-heading">
+                <h2 id="features-title">Cosa valorizziamo nell'app</h2>
+                <p>Le funzionalità già presenti vengono mantenute; gli interventi di miglioramento si definiscono insieme in base alle priorità.</p>
+            </div>
+            <div class="feature-grid">
+                <div class="feature">
+                    <strong>Clienti e operatori</strong>
+                    <span>Anagrafiche e gestione degli accessi.</span>
+                </div>
+                <div class="feature">
+                    <strong>Sedi e turni</strong>
+                    <span>Organizzazione delle attività e dei servizi.</span>
+                </div>
+                <div class="feature">
+                    <strong>Presenze e QR</strong>
+                    <span>Scansione e rilevazione delle presenze.</span>
+                </div>
+                <div class="feature">
+                    <strong>Documenti e messaggi</strong>
+                    <span>Gestione documentale e comunicazioni.</span>
+                </div>
+                <div class="feature">
+                    <strong>Report e strumenti</strong>
+                    <span>Strumenti e miglioramenti concordati.</span>
+                </div>
+                <div class="feature feature-integrations">
+                    <strong>Integrazione WhatsApp</strong>
+                    <span>Inclusa nella formula 1; costi di invio esclusi.</span>
+                </div>
+                <div class="feature feature-integrations">
+                    <strong>Stripe, se richiesto</strong>
+                    <span>Incluso nella formula 1; commissioni escluse.</span>
+                </div>
+                <div class="feature">
+                    <strong>Pubblicazione (formula 1)</strong>
+                    <span>Settaggio tecnico e rilascio in produzione.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" aria-labelledby="process-title">
+            <div class="section-heading">
+                <h2 id="process-title">Dall'avvio alla consegna</h2>
+                <p>Nella formula di acquisto seguo direttamente le attività tecniche, dal settaggio del server alla pubblicazione.</p>
+            </div>
+            <div class="process">
+                <div class="process-step">
+                    <span class="process-number">01</span>
+                    <h3>Definizione</h3>
+                    <p>Concordiamo funzioni, priorità, accessi e criteri di verifica.</p>
+                </div>
+                <div class="process-step">
+                    <span class="process-number">02</span>
+                    <h3>Sviluppo</h3>
+                    <p>Completo gli interventi concordati e preparo le integrazioni.</p>
+                </div>
+                <div class="process-step">
+                    <span class="process-number">03</span>
+                    <h3>Server e test</h3>
+                    <p>Configuro l'ambiente, pubblico l'app e verifico il funzionamento.</p>
+                </div>
+                <div class="process-step">
+                    <span class="process-number">04</span>
+                    <h3>Consegna</h3>
+                    <p>Consegno il codice e inizia il periodo di manutenzione incluso.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section costs" aria-label="Costi esclusi e accordi">
+            <div>
+                <h2 class="includes-title">Servizi di terzi esclusi</h2>
+                <div class="cost-pills">
+                    <span>Server</span>
+                    <span>Dominio</span>
+                    <span>Messaggi WhatsApp</span>
+                    <span>SMS</span>
+                    <span>Commissioni Stripe</span>
+                </div>
+                <p class="costs-note">Account, canoni e consumi dei servizi esterni sono a carico del cliente in entrambe le formule. Nella formula 2 il cliente gestisce anche l'infrastruttura.</p>
+            </div>
+            <div>
+                <h2 class="includes-title">Accordi chiari, collaborazione serena</h2>
+                <p>Prima di iniziare definiamo per iscritto perimetro, accessi e modalità di verifica. Per la partnership concordiamo anche quota e calcolo degli utili, costi deducibili, ruoli, proprietà del software, rendicontazione e modalità di uscita.</p>
+            </div>
+        </section>
+
+        <div class="fine-print">
+            <p><strong>Manutenzione della formula 1.</strong> I 31 giorni inclusi coprono la correzione di malfunzionamenti rispetto alle funzioni concordate; nuove funzioni e modifiche evolutive sono da preventivare separatamente. Il servizio annuale da 600 € è facoltativo.</p>
+            <p><strong>Nota.</strong> Questa pagina riassume le due ipotesi commerciali e non sostituisce un accordo sottoscritto. Importi, imposte applicabili, diritti sul codice e termini definitivi saranno precisati nell'offerta/contratto.</p>
+        </div>
+
+        <footer class="footer">
+            <span>Security Scanner · Proposta riservata al destinatario</span>
+            <button class="print-button" type="button" onclick="window.print()">Stampa o salva in PDF</button>
+        </footer>
+    </main>
+</body>
+</html>
