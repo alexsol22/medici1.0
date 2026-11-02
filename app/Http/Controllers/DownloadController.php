@@ -6,6 +6,8 @@ use App\Models\Legacy\Cliente;
 use App\Models\Legacy\Documento;
 use App\Models\Legacy\DocumentoView;
 use App\Models\Legacy\Gda;
+use App\Models\Legacy\Postazione;
+use App\Models\Legacy\Sede;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -33,6 +35,29 @@ class DownloadController extends Controller
         }
 
         return response()->download($documento->percorso());
+    }
+
+    public function fotoSede(Sede $sede)
+    {
+        $this->autorizzaSede((int) $sede->id_cliente);
+        $percorso = $sede->percorsoFoto();
+        abort_unless($percorso && is_file($percorso), 404);
+
+        return response()->file($percorso, ['Cache-Control' => 'private, max-age=3600']);
+    }
+
+    public function immaginePostazione(Postazione $postazione)
+    {
+        $this->autorizzaSede((int) $postazione->id_cliente);
+        $percorso = $postazione->percorsoFile();
+        abort_unless($percorso && is_file($percorso), 404);
+
+        return response()->file($percorso, ['Cache-Control' => 'private, max-age=3600']);
+    }
+
+    private function autorizzaSede(int $clienteId): void
+    {
+        abort_unless(Cliente::visibiliA(auth()->user())->whereKey($clienteId)->exists(), 403);
     }
 
     public function fotoProfilo(User $user)

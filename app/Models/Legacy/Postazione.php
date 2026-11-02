@@ -30,6 +30,16 @@ class Postazione extends LegacyModel
         return $this->hasMany(Gda::class, 'id_postazione');
     }
 
+    public function cartella(): string
+    {
+        return rtrim(config('filesystems.documenti_path'), '/').'/Cliente_'.$this->id_cliente.'/Sede_'.$this->id_sede.'/Postazione_'.$this->id;
+    }
+
+    public function percorsoFile(): ?string
+    {
+        return $this->file ? $this->cartella().'/'.basename($this->file) : null;
+    }
+
     protected function minutiPassaggio(): Attribute
     {
         return Attribute::get(fn () => $this->minuti);

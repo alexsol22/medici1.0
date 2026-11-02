@@ -7,6 +7,7 @@ use App\Models\Legacy\Admin;
 use App\Models\Legacy\Certificato;
 use App\Models\Legacy\Documento;
 use App\Models\Legacy\DocumentoView;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\File;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -22,13 +23,39 @@ class Documenti extends Component
 
     private const ICONE = ['png' => 'file-image', 'jpg' => 'file-image', 'jpeg' => 'file-image', 'pdf' => 'file-pdf', 'doc' => 'file-word', 'docx' => 'file-word', 'xls' => 'file-excel', 'xlsx' => 'file-excel'];
 
-    public string $filtroTipo = '';
+    public string $filtroCliente = '';
+
+    public string $filtroOperatore = '';
+
+    public string $filtroTipologia = '';
+
+    public string $filtroDescrizione = '';
 
     public bool $modal = false;
 
     public array $f = [];
 
     public $file;
+
+    public function updatedFiltroCliente(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFiltroOperatore(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFiltroTipologia(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFiltroDescrizione(): void
+    {
+        $this->resetPage();
+    }
 
     public function nuovo(): void
     {
@@ -82,16 +109,7 @@ class Documenti extends Component
         $this->modal = false;
     }
 
-    public function elimina(int $id): void
-    {
-        $this->soloStaff();
-        $d = $this->query()->findOrFail($id);
-        File::delete($d->percorso());
-        DocumentoView::where('id_documento', $d->id)->delete();
-        $d->delete();
-    }
-
-    private function query()
+    private function query(): Builder
     {
         $u = auth()->user();
 
@@ -102,15 +120,42 @@ class Documenti extends Component
         });
     }
 
+    private function applicaFiltriProprietario(Builder $query): Builder
+    {
+        if ($this->filtroCliente !== '' && $this->filtroOperatore !== '') {
+            return $query->where(fn (Builder $ownerQuery) => $ownerQuery
+                ->where(fn (Builder $clientQuery) => $clientQuery->where('tipo', 'C')->where('id_tipo', $this->filtroCliente))
+                ->orWhere(fn (Builder $operatorQuery) => $operatorQuery->where('tipo', 'O')->where('id_tipo', $this->filtroOperatore)));
+        }
+
+        if ($this->filtroCliente !== '') {
+            return $query->where('tipo', 'C')->where('id_tipo', $this->filtroCliente);
+        }
+
+        if ($this->filtroOperatore !== '') {
+            return $query->where('tipo', 'O')->where('id_tipo', $this->filtroOperatore);
+        }
+
+        return $query;
+    }
+
     public function render()
     {
+        $clienti = $this->clientiVisibili()->orderBy('ragione_sociale')->get(['id', 'ragione_sociale']);
+        $operatori = Admin::where('user_type', 4)->orderBy('cognome')->get(['id', 'nome', 'cognome']);
+        $tipologie = Certificato::orderBy('nome')->get();
+        $documenti = $this->applicaFiltriProprietario($this->query())
+            ->when($this->filtroTipologia !== '', fn (Builder $query) => $query->where('tipologia', $this->filtroTipologia))
+            ->when(trim($this->filtroDescrizione) !== '', fn (Builder $query) => $query->where('descrizione', 'like', '%'.trim($this->filtroDescrizione).'%'))
+            ->with(['cliente', 'operatore', 'certificato'])
+            ->orderByRaw('scadenza is null')->orderBy('scadenza')->orderByDesc('id')
+            ->paginate(12);
+
         return view('livewire.documenti', [
-            'documenti' => $this->query()->with(['cliente', 'operatore'])
-                ->when($this->filtroTipo, fn ($q) => $q->where('tipo', $this->filtroTipo))
-                ->orderByRaw('scadenza is null')->orderBy('scadenza')->orderByDesc('id')->paginate(12),
-            'clienti' => $this->clientiVisibili()->orderBy('ragione_sociale')->get(['id', 'ragione_sociale']),
-            'operatori' => Admin::where('user_type', 4)->orderBy('cognome')->get(),
-            'tipologie' => Certificato::orderBy('nome')->get(),
+            'documenti' => $documenti,
+            'clienti' => $clienti,
+            'operatori' => $operatori,
+            'tipologie' => $tipologie,
         ]);
     }
 }

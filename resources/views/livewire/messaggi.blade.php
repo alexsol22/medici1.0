@@ -1,53 +1,188 @@
 <div class="space-y-5">
-    <p class="text-sm text-slate-500">Messaggi automatici del sistema (avvisi turno, ritardi, scadenze, riconsegna materiale). Segnaposto nei testi: <code class="rounded bg-sky-50 px-1">[OPERATORE] [SEDE] [DATA TURNO] [ORA TURNO] [INDIRIZZO]</code></p>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <fieldset class="flex flex-wrap gap-2">
+            <legend class="sr-only">Canale messaggi</legend>
+            @foreach (['sms' => 'SMS', 'email' => 'Email'] as $valore => $etichetta)
+                <button
+                    type="button"
+                    wire:click="selezionaCanale('{{ $valore }}')"
+                    aria-pressed="{{ $canale === $valore ? 'true' : 'false' }}"
+                    @class(['btn-primary' => $canale === $valore, 'btn-soft' => $canale !== $valore])
+                >{{ $etichetta }}</button>
+            @endforeach
+            <button type="button" disabled aria-disabled="true" class="btn-soft cursor-not-allowed opacity-50">
+                WhatsApp <span class="text-xs font-normal">(in arrivo)</span>
+            </button>
+        </fieldset>
+    </div>
 
-    <section class="card overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full min-w-[760px] text-left text-sm">
-                <thead class="bg-sky-50/70 text-xs uppercase tracking-wide text-slate-500">
-                    <tr>
-                        <th class="px-5 py-3 font-semibold">Messaggio</th>
-                        <th class="px-5 py-3 font-semibold">Oggetto</th>
-                        <th class="px-5 py-3 font-semibold">Tempi</th>
-                        <th class="px-5 py-3 font-semibold">Canali</th>
-                        <th class="px-5 py-3 font-semibold">Azioni</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-sky-50">
-                    @foreach ($modelli as $m)
-                        <tr wire:key="m{{ $m->id }}" class="align-top">
-                            <td class="px-5 py-4 font-medium text-slate-800">{{ $m->nome }}</td>
-                            <td class="px-5 py-4 text-slate-600">{{ $m->oggetto }}</td>
-                            <td class="whitespace-nowrap px-5 py-4 text-slate-600">{{ $m->giorni }} g · {{ $m->ore ?? 0 }} h · {{ $m->minuti ?? 0 }} min</td>
-                            <td class="whitespace-nowrap px-5 py-4 text-slate-600">{{ $m->invia_email ? 'Email' : '' }}{{ $m->invia_email && $m->invia_sms ? ' + ' : '' }}{{ $m->invia_sms ? 'SMS' : '' }}{{ ! $m->invia_email && ! $m->invia_sms ? 'Disattivato' : '' }}</td>
-                            <td class="whitespace-nowrap px-5 py-4"><button wire:click="modifica({{ $m->id }})" class="btn-soft !px-3 !py-1.5">Modifica</button></td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    @if ($modal)
-        <x-ui.modal title="Modifica messaggio" wide>
-            <form wire:submit="salva" class="grid gap-4 sm:grid-cols-3">
-                <x-ui.field label="Nome" name="f.nome" class="sm:col-span-3"><input wire:model="f.nome" class="input"></x-ui.field>
-                <x-ui.field label="Giorni" name="f.giorni"><input type="number" wire:model="f.giorni" class="input"></x-ui.field>
-                <x-ui.field label="Ore" name="f.ore"><input type="number" wire:model="f.ore" class="input"></x-ui.field>
-                <x-ui.field label="Minuti" name="f.minuti"><input type="number" wire:model="f.minuti" class="input"></x-ui.field>
-                <label class="flex items-center gap-2 text-sm"><input type="checkbox" wire:model="f.invia_email" class="rounded border-sky-300 text-sky-500"> Invia email</label>
-                <label class="flex items-center gap-2 text-sm"><input type="checkbox" wire:model="f.invia_sms" class="rounded border-sky-300 text-sky-500"> Invia SMS</label>
-                <x-ui.field label="Mittente SMS" name="f.mittente"><input wire:model="f.mittente" class="input"></x-ui.field>
-                <x-ui.field label="Oggetto email" name="f.oggetto" class="sm:col-span-3"><input wire:model="f.oggetto" class="input"></x-ui.field>
-                <x-ui.field label="Testo email" name="f.modello_email" class="sm:col-span-3"><textarea wire:model="f.modello_email" rows="4" class="input"></textarea></x-ui.field>
-                <x-ui.field label="Testo SMS" name="f.modello_sms" class="sm:col-span-3"><textarea wire:model="f.modello_sms" rows="2" class="input"></textarea></x-ui.field>
-                <x-ui.field label="Email amministrazione (separate da virgola)" name="f.admin_email" class="sm:col-span-3"><input wire:model="f.admin_email" class="input"></x-ui.field>
-                <x-ui.field label="Numeri SMS amministrazione" name="f.admin_sms" class="sm:col-span-3"><input wire:model="f.admin_sms" class="input"></x-ui.field>
-                <div class="flex justify-end gap-2 sm:col-span-3">
-                    <button type="button" wire:click="$set('modal', false)" class="btn-soft">Annulla</button>
-                    <button class="btn-primary">Salva</button>
+    @if (in_array($canale, ['sms', 'email'], true))
+            <section aria-label="Filtri invii" class="card grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                <x-ui.select-search
+                    label="Operatore"
+                    model="filtroOperatore"
+                    :live="true"
+                    placeholder="Tutti gli operatori"
+                    :options="$operatori->map(fn ($o) => ['id' => (string) $o->id, 'nome' => $o->nome_completo])->values()"
+                />
+                <div>
+                    <label for="filtro-dal" class="label">Dal</label>
+                    <input id="filtro-dal" type="datetime-local" wire:model.live="filtroDal" class="input">
+                    @error('filtroDal') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                 </div>
-            </form>
+                <div>
+                    <label for="filtro-al" class="label">Al</label>
+                    <input id="filtro-al" type="datetime-local" wire:model.live="filtroAl" class="input">
+                    @error('filtroAl') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                @if ($filtroOperatore !== '' || $filtroDal !== '' || $filtroAl !== '')
+                    <div class="flex items-end">
+                        <button
+                            type="button"
+                            wire:click="azzeraFiltri"
+                            class="btn-soft"
+                        >Azzera filtri</button>
+                    </div>
+                @endif
+            </section>
+    @endif
+
+    @if ($canale === 'sms')
+            <section aria-label="SMS inviati" class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-sky-100">
+                        <thead class="bg-sky-50/60">
+                            <tr>
+                                <th class="th">Data</th>
+                                <th class="th">Operatore</th>
+                                <th class="th">Cellulare</th>
+                                <th class="th">Mittente</th>
+                                <th class="th">Testo</th>
+                                <th class="th">Costo</th>
+                                <th class="th">Stato</th>
+                                <th class="th">Notifica</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-sky-50">
+                            @forelse ($smsInviati as $sms)
+                                @php
+                                    $risultato = $sms->risultati->first();
+                                    $notifica = $sms->risultati->flatMap(fn ($r) => $r->consegne)->sortByDesc('delivery_data')->first();
+                                    $consegne = $sms->risultati->flatMap(fn ($r) => $r->consegne);
+                                    $consegnato = $consegne->isNotEmpty() && $consegne->every(fn ($consegna) => $consegna->delivery_status === 'D');
+                                    $consegnaParziale = $consegne->contains(fn ($consegna) => $consegna->delivery_status === 'D')
+                                        && $consegne->contains(fn ($consegna) => $consegna->delivery_status !== 'D');
+                                @endphp
+                                <tr wire:key="sms-{{ $sms->id }}" class="align-top hover:bg-sky-50/40">
+                                    <td class="td whitespace-nowrap">{{ $sms->data_invio?->format('d/m/Y H:i') ?? '—' }}</td>
+                                    <td class="td whitespace-nowrap">{{ $sms->operatore?->nome_completo ?? '—' }}</td>
+                                    <td class="td whitespace-nowrap">{{ $sms->destinatari }}</td>
+                                    <td class="td whitespace-nowrap">{{ $sms->sender ?? '—' }}</td>
+                                    <td class="td min-w-64 max-w-xl whitespace-pre-wrap break-words">{{ $sms->testo }}</td>
+                                    <td class="td whitespace-nowrap">{{ $sms->risultati->sum('costo') > 0 ? number_format($sms->risultati->sum('costo'), 2, ',', '.').' €' : '—' }}</td>
+                                    <td class="td whitespace-nowrap">
+                                        @php($descrizioneStato = $sms->sent === 'Y' ? 'SMS inviato' : ($risultato?->response ?: 'SMS non inviato'))
+                                        <div x-data="{ mostraLegenda: false }" @click.outside="mostraLegenda = false" class="relative inline-block">
+                                            <button
+                                                type="button"
+                                                @click="mostraLegenda = ! mostraLegenda"
+                                                :aria-expanded="mostraLegenda"
+                                                aria-controls="sms-stato-{{ $sms->id }}"
+                                                class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-300 {{ $sms->sent === 'Y' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-rose-100 text-rose-700 hover:bg-rose-200' }}"
+                                            >
+                                                @if ($sms->sent === 'Y')
+                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/>
+                                                    </svg>
+                                                    Inviato
+                                                @else
+                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m6 6 12 12M18 6 6 18"/>
+                                                    </svg>
+                                                    Non inviato
+                                                @endif
+                                            </button>
+                                            <div
+                                                id="sms-stato-{{ $sms->id }}"
+                                                x-cloak
+                                                x-show="mostraLegenda"
+                                                role="tooltip"
+                                                style="position: absolute; z-index: 20; top: 100%; left: 0; width: 14rem; max-width: calc(100vw - 2rem); max-height: 6rem; overflow-y: auto; margin-top: .25rem; padding: .5rem .75rem; border-radius: .5rem; background: #0f172a; color: #fff; font-size: .75rem; line-height: 1.25rem; white-space: normal; overflow-wrap: anywhere; text-align: left; box-shadow: 0 10px 15px -3px rgb(15 23 42 / .3);"
+                                            ><strong style="color: #fff;">{{ $sms->sent === 'Y' ? 'Inviato' : 'Non inviato' }}</strong>@if ($sms->sent !== 'Y' && $risultato?->response)<span style="display: block; color: #fff;">{{ $risultato->response }}</span>@endif</div>
+                                        </div>
+                                    </td>
+                                    <td class="td whitespace-nowrap">
+                                        @if ($notifica)
+                                            <span @class(['rounded-full px-2.5 py-1 text-xs font-semibold', 'bg-emerald-100 text-emerald-700' => $consegnato, 'bg-amber-100 text-amber-700' => $consegnaParziale, 'bg-rose-100 text-rose-700' => ! $consegnato && ! $consegnaParziale])>
+                                                {{ $consegnato ? 'Consegnato' : ($consegnaParziale ? 'Parziale' : 'Fallita') }}
+                                            </span>
+                                            @if ($notifica->delivery_data)
+                                                <span class="mt-1 block text-xs text-slate-400">{{ $notifica->delivery_data->format('d/m/Y H:i') }}</span>
+                                            @endif
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="8" class="td py-10 text-center text-slate-500">Nessun SMS inviato.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            {{ $smsInviati->links() }}
+    @elseif ($canale === 'email')
+            <section aria-label="Email inviate" class="card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-sky-100">
+                        <thead class="bg-sky-50/60">
+                            <tr>
+                                <th class="th">Data</th>
+                                <th class="th">Operatore</th>
+                                <th class="th">Email</th>
+                                <th class="th">Oggetto</th>
+                                <th class="th">Email</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-sky-50">
+                            @forelse ($emailInviate as $email)
+                                <tr wire:key="email-{{ $email->id }}" class="hover:bg-sky-50/40">
+                                    <td class="td whitespace-nowrap">{{ $email->data_invio?->format('d/m/Y H:i') ?? '—' }}</td>
+                                    <td class="td whitespace-nowrap">{{ $email->operatore?->nome_completo ?? '—' }}</td>
+                                    <td class="td max-w-xs whitespace-normal break-all">{{ $email->destinatario }}</td>
+                                    <td class="td max-w-sm whitespace-normal">{{ $email->oggetto ?? '—' }}</td>
+                                    <td class="td whitespace-nowrap">
+                                        <button type="button" wire:click="visualizzaEmail({{ $email->id }})" class="btn-soft !px-3 !py-1.5">Visualizza</button>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="td py-10 text-center text-slate-500">Nessuna email inviata.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            {{ $emailInviate->links() }}
+    @else
+        <section class="card p-10 text-center">
+            <h2 class="text-lg font-semibold text-slate-800">WhatsApp non ancora disponibile</h2>
+            <p class="mt-2 text-sm text-slate-500">La consultazione dei messaggi WhatsApp sarà disponibile quando il canale verrà implementato.</p>
+        </section>
+    @endif
+
+    @if ($modalEmail)
+        <x-ui.modal title="Email inviata" wide="xl" close="chiudiEmail">
+            <iframe
+                title="Contenuto dell'email inviata"
+                sandbox=""
+                referrerpolicy="no-referrer"
+                class="h-[70vh] w-full rounded-xl border border-sky-100 bg-white"
+                srcdoc="{{ $emailVisualizzazione }}"
+            ></iframe>
+            <div class="mt-4 flex justify-end">
+                <button type="button" wire:click="chiudiEmail" class="btn-soft">Chiudi</button>
+            </div>
         </x-ui.modal>
     @endif
 </div>

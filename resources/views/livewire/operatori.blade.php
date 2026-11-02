@@ -3,10 +3,6 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-1 gap-2">
                 <input type="search" wire:model.live.debounce.300ms="cerca" placeholder="Cerca per nome o email…" class="input sm:max-w-xs">
-                <select wire:model.live="filtroRuolo" class="input sm:max-w-[11rem]">
-                    <option value="">Tutti i ruoli</option>
-                    @foreach ($ruoli as $r) <option value="{{ $r->value }}">{{ $r->label() }}</option> @endforeach
-                </select>
             </div>
             <button wire:click="nuovo" class="btn-primary">+ Nuovo utente</button>
         </div>

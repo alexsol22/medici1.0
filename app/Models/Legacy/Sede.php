@@ -56,6 +56,17 @@ class Sede extends LegacyModel
         return $this->hasMany(Gda::class, 'id_sede');
     }
 
+    /** Cartella dei file come in Yii: protected/documenti/Cliente_{id}/Sede_{id}. */
+    public function cartella(): string
+    {
+        return rtrim(config('filesystems.documenti_path'), '/').'/Cliente_'.$this->id_cliente.'/Sede_'.$this->id;
+    }
+
+    public function percorsoFoto(): ?string
+    {
+        return $this->foto ? $this->cartella().'/'.basename($this->foto) : null;
+    }
+
     protected function citta(): Attribute
     {
         return Attribute::get(fn () => $this->comune?->comune);

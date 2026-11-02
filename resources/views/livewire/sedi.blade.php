@@ -3,7 +3,7 @@
         <div class="flex flex-1 flex-col gap-2 sm:flex-row">
             <input type="search" wire:model.live.debounce.300ms="cerca" placeholder="Cerca sede o città…" class="input sm:max-w-xs">
             @unless (auth()->user()->isCliente())
-                <select wire:model.live="filtroCliente" class="input sm:max-w-xs"><option value="">Tutti i clienti</option>@foreach ($clienti as $c)<option value="{{ $c->id }}">{{ $c->ragione_sociale }}</option>@endforeach</select>
+                <x-ui.select-search model="filtroCliente" :live="true" placeholder="Tutti i clienti" :options="$clienti->map(fn ($c) => ['id' => (string) $c->id, 'nome' => $c->ragione_sociale])->values()" class="sm:w-72" />
             @endunless
         </div>
         @if (auth()->user()->isStaff()) <a href="{{ route('sedi.crea', array_filter(['cliente' => $filtroCliente])) }}" wire:navigate class="btn-primary">+ Nuova sede</a> @endif

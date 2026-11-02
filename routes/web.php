@@ -39,6 +39,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/sedi', Livewire\Sedi::class)->name('sedi');
         Route::get('/sedi/nuova', Livewire\SedeForm::class)->name('sedi.crea');
         Route::get('/sedi/{sede}/modifica', Livewire\SedeForm::class)->name('sedi.modifica');
+        Route::get('/sedi/{sede}/foto', [DownloadController::class, 'fotoSede'])->name('sedi.foto');
+        Route::get('/postazioni/{postazione}/immagine', [DownloadController::class, 'immaginePostazione'])->name('postazioni.immagine');
         Route::get('/turni', Livewire\Turni::class)->name('turni');
         Route::get('/presenze', Livewire\Presenze::class)->name('presenze');
         Route::get('/presenze/esporta', [DownloadController::class, 'presenze'])->name('presenze.esporta');
@@ -51,6 +53,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/clienti', Livewire\Clienti::class)->name('clienti');
         Route::get('/operatori', Livewire\Operatori::class)->name('operatori');
         Route::get('/messaggi', Livewire\Messaggi::class)->name('messaggi');
+        Route::get('/messaggi/modelli', Livewire\ModelliMessaggio::class)->name('messaggi.modelli');
         Route::get('/impostazioni', Livewire\Impostazioni::class)->name('impostazioni');
     });
 

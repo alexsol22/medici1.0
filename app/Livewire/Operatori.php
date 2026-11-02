@@ -33,8 +33,6 @@ class Operatori extends Component
 
     public string $cerca = '';
 
-    public string $filtroRuolo = '';
-
     #[Url(as: 'form')]
     public bool $editing = false;
 
@@ -288,7 +286,6 @@ class Operatori extends Component
     public function render()
     {
         $utenti = $this->query()->with('cliente')
-            ->when($this->filtroRuolo, fn ($q) => $q->where('user_type', Ruolo::from($this->filtroRuolo)->tipoLegacy()))
             ->when($this->cerca, fn ($q) => $q->where(fn ($w) => $w->where('nome', 'like', "%{$this->cerca}%")->orWhere('cognome', 'like', "%{$this->cerca}%")->orWhere('email', 'like', "%{$this->cerca}%")))
             ->orderBy('cognome')->orderBy('nome')->paginate(10);
 
@@ -303,7 +300,6 @@ class Operatori extends Component
             'tipiCertificato' => $conSezioni ? Certificato::orderBy('nome')->get() : collect(),
             'tipiMateriale' => $conSezioni ? TipoMateriale::orderBy('nome')->get() : collect(),
             'clienti' => Cliente::orderBy('ragione_sociale')->get(['id', 'ragione_sociale']),
-            'ruoli' => Ruolo::cases(),
         ]);
     }
 }

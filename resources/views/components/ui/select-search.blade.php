@@ -1,4 +1,6 @@
-@props(['model', 'options', 'placeholder' => 'Seleziona…', 'live' => false])
+@props(['model', 'options', 'placeholder' => 'Seleziona…', 'live' => false, 'label' => null])
+
+@php($id = 'select-search-'.str_replace('.', '-', $model))
 
 <div
     x-data="{
@@ -17,7 +19,10 @@
     @keydown.escape="open = false"
     {{ $attributes->class("relative") }}
 >
-    <button type="button" @click="open = !open; if (open) $nextTick(() => $refs.cerca.focus())" class="input flex items-center justify-between gap-2 text-left">
+    @if ($label)
+        <label for="{{ $id }}" class="label">{{ $label }}</label>
+    @endif
+    <button id="{{ $id }}" type="button" @click="open = !open; if (open) $nextTick(() => $refs.cerca.focus())" class="input flex items-center justify-between gap-2 text-left">
         <span x-text="label || '{{ $placeholder }}'" :class="label ? '' : 'text-slate-400'" class="truncate"></span>
         <span class="flex items-center gap-1">
             <span x-show="value" @click.stop="pick('')" class="text-xs text-slate-400 hover:text-slate-700" title="Svuota">✕</span>

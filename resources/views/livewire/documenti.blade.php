@@ -1,32 +1,68 @@
 <div class="space-y-5">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        @if (auth()->user()->isStaff())
-            <select wire:model.live="filtroTipo" class="input sm:max-w-[12rem]"><option value="">Tutti i documenti</option><option value="C">Clienti</option><option value="O">Operatori</option></select>
-            <button wire:click="nuovo" class="btn-primary">+ Carica documento</button>
-        @endif
-    </div>
-
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        @forelse ($documenti as $d)
-            <div wire:key="d{{ $d->id }}" class="card flex flex-col p-5">
-                <div class="flex items-start justify-between gap-2">
-                    <div class="min-w-0">
-                        <h3 class="truncate font-semibold text-slate-800">{{ $d->descrizione }}</h3>
-                        <p class="text-xs text-slate-500">{{ $d->tipo === 'C' ? $d->cliente?->ragione_sociale : $d->operatore?->nome_completo }}</p>
-                    </div>
-                    @if ($d->scadenza)
-                        <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold {{ $d->scadenza->isPast() ? 'bg-rose-100 text-rose-700' : ($d->inScadenza() ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700') }}">{{ $d->scadenza->format('d/m/Y') }}</span>
-                    @endif
-                </div>
-                <div class="mt-4 flex gap-2">
-                    <a href="{{ route('documenti.scarica', $d) }}" class="btn-soft !px-3 !py-1.5">Scarica</a>
-                    @if (auth()->user()->isStaff())<button wire:click="elimina({{ $d->id }})" wire:confirm="Eliminare il documento?" class="btn-danger !px-3 !py-1.5">Elimina</button>@endif
-                </div>
+    @if (auth()->user()->isStaff())
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div>
+                <label class="label">Cliente</label>
+                <x-ui.select-search model="filtroCliente" :live="true" placeholder="Scegli" :options="$clienti->map(fn ($c) => ['id' => (string) $c->id, 'nome' => $c->ragione_sociale])->values()" />
             </div>
-        @empty
-            <p class="card col-span-full p-10 text-center text-sm text-slate-500">Nessun documento disponibile.</p>
-        @endforelse
-    </div>
+            <div>
+                <label class="label">Operatore</label>
+                <x-ui.select-search model="filtroOperatore" :live="true" placeholder="Scegli" :options="$operatori->map(fn ($o) => ['id' => (string) $o->id, 'nome' => $o->nome_completo])->values()" />
+            </div>
+            <div>
+                <label class="label">Tipologia</label>
+                <x-ui.select-search model="filtroTipologia" :live="true" placeholder="Scegli" :options="$tipologie->map(fn ($t) => ['id' => (string) $t->id, 'nome' => $t->nome])->values()" />
+            </div>
+            <div>
+                <label for="filtro-descrizione" class="label">Descrizione</label>
+                <input id="filtro-descrizione" type="search" wire:model.live.debounce.300ms="filtroDescrizione" placeholder="Cerca descrizione..." class="input">
+            </div>
+        </div>
+        <div class="flex justify-end">
+            <button wire:click="nuovo" class="btn-primary">+ Carica documento</button>
+        </div>
+    @endif
+
+    <section aria-label="Elenco documenti" class="card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-sky-100">
+                <thead class="bg-sky-50/60">
+                    <tr>
+                        <th class="th">Cliente</th>
+                        <th class="th">Operatore</th>
+                        <th class="th">Tipologia</th>
+                        <th class="th">Descrizione</th>
+                        <th class="th">Scadenza</th>
+                        <th class="th">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-sky-50">
+                    @forelse ($documenti as $d)
+                        <tr wire:key="d{{ $d->id }}" class="hover:bg-sky-50/40">
+                            <td class="td">{{ $d->tipo === 'C' ? $d->cliente?->ragione_sociale : '—' }}</td>
+                            <td class="td">{{ $d->tipo === 'O' ? $d->operatore?->nome_completo : '—' }}</td>
+                            <td class="td">{{ $d->certificato?->nome ?? '—' }}</td>
+                            <td class="td max-w-sm whitespace-normal font-medium text-slate-800">{{ $d->descrizione }}</td>
+                            <td class="td whitespace-nowrap">
+                                @if ($d->scadenza)
+                                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $d->scadenza->isPast() ? 'bg-rose-100 text-rose-700' : ($d->inScadenza() ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700') }}">{{ $d->scadenza->format('d/m/Y') }}</span>
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td class="td whitespace-nowrap">
+                                <a href="{{ route('documenti.scarica', $d) }}" class="btn-soft !px-3 !py-1.5">Scarica</a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="td py-10 text-center text-slate-500">Nessun documento disponibile.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
     {{ $documenti->links() }}
 
     @if ($modal)

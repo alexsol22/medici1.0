@@ -8,8 +8,8 @@
         ],
         'Anagrafica' => [
             ['clienti', 'Clienti', 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2M5 21H3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5', ['super_admin', 'admin']],
-            ['sedi', 'Sedi', 'M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z', ['super_admin', 'admin', 'cliente']],
             ['operatori', 'Operatori', 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', ['super_admin', 'admin']],
+            ['sedi', 'Sedi', 'M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z', ['super_admin', 'admin', 'cliente']],
         ],
         'Turni e presenze' => [
             ['scansione', 'Timbra', 'M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z', ['operatore']],
@@ -20,6 +20,7 @@
         'Comunicazioni e documenti' => [
             ['bacheca', 'Bacheca', 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z', ['super_admin', 'admin', 'operatore']],
             ['messaggi', 'Messaggi', 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', ['super_admin', 'admin']],
+            ['messaggi.modelli', 'Modelli automatici', 'M8 7V3m8 4V3M5 11h14M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z', ['super_admin', 'admin']],
             ['documenti', 'Documenti', 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', ['super_admin', 'admin', 'cliente', 'operatore']],
         ],
     ];
@@ -35,6 +36,7 @@
         'presenze' => 'presenze timbrature rilevazioni report',
         'bacheca' => 'bacheca avvisi comunicazioni notizie',
         'messaggi' => 'messaggi email comunicazioni',
+        'messaggi.modelli' => 'modelli automatici sms email notifiche',
         'documenti' => 'documenti file allegati scadenze',
     ];
     $ricercaVoci = collect($menu)

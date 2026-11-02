@@ -2,64 +2,144 @@
 
 namespace App\Livewire;
 
-use App\Models\Legacy\Messaggio;
+use App\Models\Legacy\Admin;
+use App\Models\Legacy\Email;
+use App\Models\Legacy\SendSms;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('layouts::app')]
-#[Title('Modelli di messaggio')]
+#[Title('Messaggi')]
 class Messaggi extends Component
 {
-    public bool $modal = false;
+    use WithPagination;
 
-    public ?int $modelloId = null;
+    public string $canale = 'sms';
 
-    public array $f = [];
+    public string $filtroOperatore = '';
 
-    protected function rules(): array
-    {
-        return [
-            'f.nome' => 'required|string|max:255',
-            'f.giorni' => 'required|integer|min:0|max:365',
-            'f.ore' => 'nullable|integer|min:0|max:999',
-            'f.minuti' => 'nullable|integer|min:0|max:999',
-            'f.oggetto' => 'nullable|string|max:255',
-            'f.mittente' => 'required|string|max:16',
-            'f.modello_email' => 'nullable|string|max:255',
-            'f.modello_sms' => 'nullable|string|max:255',
-            'f.admin_email' => 'nullable|string|max:150',
-            'f.admin_sms' => 'nullable|string|max:150',
-        ];
-    }
+    public string $filtroDal = '';
+
+    public string $filtroAl = '';
+
+    public bool $modalEmail = false;
+
+    public ?string $emailVisualizzazione = null;
 
     public function mount(): void
     {
         abort_unless(auth()->user()->isStaff(), 403);
     }
 
-    public function modifica(int $id): void
+    public function selezionaCanale(string $canale): void
     {
-        $m = Messaggio::findOrFail($id);
-        $this->modelloId = $m->id;
-        $this->f = $m->only(['nome', 'giorni', 'ore', 'minuti', 'oggetto', 'mittente', 'modello_email', 'modello_sms', 'admin_email', 'admin_sms'])
-            + ['invia_email' => $m->invia_email, 'invia_sms' => $m->invia_sms];
-        $this->resetValidation();
-        $this->modal = true;
+        abort_unless(in_array($canale, ['sms', 'email', 'whatsapp'], true), 404);
+
+        $this->canale = $canale;
+        $this->resetPage();
     }
 
-    public function salva(): void
+    public function updatedFiltroOperatore(): void
     {
-        $this->validate();
-        $dati = $this->f;
-        $dati['invia_email'] = ! empty($dati['invia_email']) ? 'Y' : 'N';
-        $dati['invia_sms'] = ! empty($dati['invia_sms']) ? 'Y' : 'N';
-        Messaggio::findOrFail($this->modelloId)->update($dati);
-        $this->modal = false;
+        $this->resetPage();
+    }
+
+    public function updatedFiltroDal(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFiltroAl(): void
+    {
+        $this->resetPage();
+    }
+
+    public function azzeraFiltri(): void
+    {
+        $this->filtroOperatore = '';
+        $this->filtroDal = '';
+        $this->filtroAl = '';
+        $this->resetValidation();
+        $this->resetPage();
+    }
+
+    public function visualizzaEmail(int $id): void
+    {
+        abort_unless(auth()->user()->isStaff(), 403);
+
+        $email = Email::query()->findOrFail($id);
+        $policy = "default-src 'none'; img-src data: cid:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'";
+
+        $this->emailVisualizzazione = '<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="'.$policy.'"></head><body>'.$email->email.'</body></html>';
+        $this->modalEmail = true;
+    }
+
+    public function chiudiEmail(): void
+    {
+        $this->modalEmail = false;
+        $this->emailVisualizzazione = null;
     }
 
     public function render()
     {
-        return view('livewire.messaggi', ['modelli' => Messaggio::orderBy('id')->get()]);
+        $this->validate([
+            'filtroOperatore' => ['nullable', 'integer'],
+            'filtroDal' => ['nullable', 'date_format:Y-m-d\TH:i'],
+            'filtroAl' => ['nullable', 'date_format:Y-m-d\TH:i', 'after_or_equal:filtroDal'],
+        ]);
+
+        $operatori = Admin::query()
+            ->where('user_type', 4)
+            ->orderBy('cognome')
+            ->orderBy('nome')
+            ->get(['id', 'nome', 'cognome']);
+
+        $dati = match (true) {
+            $this->canale === 'sms' => [
+                'smsInviati' => $this->applicaFiltriInvii(SendSms::query())
+                    ->with([
+                        'operatore:id,nome,cognome',
+                        'risultati:id,send_id,adl_id,costo,response',
+                        'risultati.consegne:id,refer_id,delivery_status,delivery_data',
+                    ])
+                    ->orderByDesc('data_invio')
+                    ->paginate(25),
+            ],
+            $this->canale === 'email' => [
+                'emailInviate' => $this->applicaFiltriInvii(Email::query())
+                    ->with('operatore:id,nome,cognome')
+                    ->orderByDesc('data_invio')
+                    ->paginate(25),
+            ],
+            default => [],
+        };
+
+        return view('livewire.messaggi', [
+            ...$dati,
+            'operatori' => $operatori,
+        ]);
+    }
+
+    private function applicaFiltriInvii(Builder $query): Builder
+    {
+        return $query
+            ->when($this->filtroOperatore !== '', fn (Builder $builder) => $builder->where('id_operatore', $this->filtroOperatore))
+            ->when($this->filtroDal !== '', fn (Builder $builder) => $builder->where('data_invio', '>=', $this->dataOraSql($this->filtroDal)))
+            ->when($this->filtroAl !== '', fn (Builder $builder) => $builder->where('data_invio', '<', $this->dataOraSql($this->filtroAl, true)));
+    }
+
+    private function dataOraSql(string $dataOra, bool $esclusiva = false): string
+    {
+        $data = CarbonImmutable::parse($dataOra);
+
+        if ($esclusiva) {
+            $data = $data->addMinute();
+        }
+
+        return $data->format('Y-m-d H:i:s');
     }
 }
