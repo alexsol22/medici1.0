@@ -9,8 +9,8 @@
         </div>
         <form wire:submit="accedi" class="card space-y-5 p-6 sm:p-8">
             <div>
-                <label class="label" for="email">Email</label>
-                <input id="email" type="email" wire:model="email" class="input" autocomplete="username" autofocus>
+                <label class="label" for="email">Utente</label>
+                <input id="email" type="text" wire:model="email" class="input" autocomplete="username" autofocus>
                 @error('email') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </div>
             <div>

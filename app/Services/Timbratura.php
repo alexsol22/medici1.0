@@ -2,180 +2,198 @@
 
 namespace App\Services;
 
-use App\Enums\StatoTurno;
-use App\Models\CodiceQr;
-use App\Models\Postazione;
-use App\Models\Presenza;
-use App\Models\Sede;
-use App\Models\Turno;
+use App\Models\Legacy\Codice;
+use App\Models\Legacy\Gda;
+use App\Models\Legacy\Postazione;
+use App\Models\Legacy\Turno;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
+/** Timbratura: porting fedele di Turni::checkTurno / scansionaTurno / apriChiudiTurno / sostituzione (Yii). */
 class Timbratura
 {
-    public const MARGINE_MINUTI = 15;
-
-    /** Turno dell'operatore attivo adesso (finestra: 15 minuti prima dell'inizio, 15 minuti dopo la fine). */
-    public function turnoAttivo(User $operatore, ?int $sedeId = null): ?Turno
+    /** Turno dell'operatore valido adesso (finestra ±15 minuti su ora_inizio / ora_fine, come checkTurno). */
+    public function turnoAttivo(User $operatore): ?Turno
     {
-        $now = now();
+        $ora = now()->format('H:i');
+        $oggi = today()->toDateString();
 
-        return Turno::with(['sede', 'cliente'])
-            ->where('operatore_id', $operatore->id)
-            ->where('stato', '!=', StatoTurno::Completato->value)
-            ->when($sedeId, fn ($q) => $q->where('sede_id', $sedeId))
-            ->where('inizio', '<=', $now->copy()->addMinutes(self::MARGINE_MINUTI))
-            ->where('fine', '>=', $now->copy()->subMinutes(self::MARGINE_MINUTI))
-            ->orderBy('inizio')
-            ->first();
+        $turni = Turno::with(['sede.comune', 'sede.provincia', 'cliente'])
+            ->where('id_operatore', $operatore->id)
+            ->where(fn ($q) => $q->whereDate('data_inizio', $oggi)->orWhereDate('data_fine', $oggi))
+            ->orderBy('data_inizio')->orderBy('ora_inizio')
+            ->get();
+
+        foreach ($turni as $turno) {
+            if ($turno->stato === 'F') {
+                continue;
+            }
+
+            $fine = date('H:i', strtotime($turno->ora_fine) + 15 * 60);
+            $inizio = date('H:i', strtotime($turno->ora_inizio) - 15 * 60);
+
+            if ($ora <= $fine) {
+                if ($inizio <= $ora) {
+                    return $turno;
+                }
+
+                if ($oggi === $turno->data_fine->toDateString() && $oggi > $turno->data_inizio->toDateString()) {
+                    return $turno;
+                }
+
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /** @return array{ok: bool, message: string, tipo?: string, ritardo?: int} */
-    public function scansiona(User $operatore, string $codice, ?float $lat, ?float $lng): array
+    public function scansiona(User $operatore, string $codice, ?float $lat, ?float $lng, ?string $note = null): array
     {
-        $qr = CodiceQr::where('codice', trim($codice))->first();
-
-        if (! $qr || $qr->stato !== CodiceQr::ATTIVO) {
-            return $this->ko('Codice QR non valido o non attivo.');
-        }
-
-        $postazione = $qr->tipo === CodiceQr::POSTAZIONE ? Postazione::with('sede')->find($qr->postazione_id) : null;
-        $sede = $postazione?->sede ?? Sede::find($qr->sede_id);
-
-        if (! $sede) {
-            return $this->ko('Il codice non è associato a nessuna sede.');
-        }
-
-        $turno = $this->turnoAttivo($operatore, $sede->id);
-        if (! $turno) {
-            return $this->ko('Nessun turno attivo per te in questa sede.');
-        }
-
-        $distanza = null;
-        if ($lat !== null && $lng !== null && $sede->lat !== null && $sede->lng !== null) {
-            $distanza = Calcoli::distanzaKm($lat, $lng, (float) $sede->lat, (float) $sede->lng);
-        }
-
-        if ($qr->tipo === CodiceQr::SEDE && $distanza !== null && $distanza * 1000 > $sede->distanza_max) {
-            return $this->ko('Sei troppo lontano dalla sede ('.round($distanza * 1000).' m, massimo '.$sede->distanza_max.' m).');
-        }
-
-        return DB::transaction(function () use ($turno, $operatore, $qr, $postazione, $lat, $lng, $distanza) {
-            $now = now();
-            $base = [
-                'turno_id' => $turno->id,
-                'operatore_id' => $operatore->id,
-                'cliente_id' => $turno->cliente_id,
-                'sede_id' => $turno->sede_id,
-                'codice_qr_id' => $qr->id,
-                'rilevata_at' => $now,
-                'lat' => $lat,
-                'lng' => $lng,
-                'distanza_km' => $distanza,
-            ];
-
-            if ($qr->tipo === CodiceQr::POSTAZIONE) {
-                $messaggioInizio = null;
-
-                if ($turno->stato === StatoTurno::Programmato) {
-                    $ritardoInizio = Calcoli::ritardoMinuti($turno->inizio, $now);
-                    Presenza::create($base + ['tipo' => Presenza::INIZIO, 'ritardo_minuti' => $ritardoInizio]);
-                    $turno->update(['stato' => StatoTurno::Iniziato]);
-                    $messaggioInizio = 'Turno iniziato. '.$this->descriviRitardo($ritardoInizio, 'inizio').' ';
-                }
-
-                $risultato = $this->passaggio($turno, $postazione, $base, $now);
-                if ($messaggioInizio !== null) {
-                    $risultato['message'] = $messaggioInizio.$risultato['message'];
-                }
-
-                return $risultato;
-            }
-
-            if ($turno->stato === StatoTurno::Programmato) {
-                $ritardo = Calcoli::ritardoMinuti($turno->inizio, $now);
-                Presenza::create($base + ['tipo' => Presenza::INIZIO, 'ritardo_minuti' => $ritardo]);
-                $turno->update(['stato' => StatoTurno::Iniziato]);
-
-                return ['ok' => true, 'tipo' => Presenza::INIZIO, 'ritardo' => $ritardo,
-                    'message' => 'Turno iniziato. '.$this->descriviRitardo($ritardo, 'inizio')];
-            }
-
-            $inizio = $turno->presenze()->where('tipo', Presenza::INIZIO)->orderBy('rilevata_at')->first();
-            $ritardo = Calcoli::ritardoMinuti($turno->fine, $now);
-            Presenza::create($base + ['tipo' => Presenza::FINE, 'ritardo_minuti' => $ritardo]);
-            $turno->update([
-                'stato' => StatoTurno::Completato,
-                'ore_lavorate' => Calcoli::ore($inizio?->rilevata_at ?? $turno->inizio, $now),
-            ]);
-
-            return ['ok' => true, 'tipo' => Presenza::FINE, 'ritardo' => $ritardo,
-                'message' => 'Turno completato. '.$this->descriviRitardo($ritardo, 'fine')];
-        });
-    }
-
-    private function passaggio(Turno $turno, ?Postazione $postazione, array $base, $now): array
-    {
-        if ($turno->stato !== StatoTurno::Iniziato) {
-            return $this->ko('Devi prima timbrare l\'inizio turno scansionando il codice della sede.');
-        }
-
-        $ritardo = null;
-        if ($postazione?->minuti_passaggio) {
-            $inizio = $turno->presenze()->where('tipo', Presenza::INIZIO)->orderBy('rilevata_at')->first();
-            $n = $turno->presenze()->where('tipo', Presenza::PASSAGGIO)->where('postazione_id', $postazione->id)->count() + 1;
-            $previsto = ($inizio?->rilevata_at ?? $turno->inizio)->copy()->addMinutes($n * $postazione->minuti_passaggio);
-            $ritardo = Calcoli::ritardoMinuti($previsto, $now);
-        }
-
-        Presenza::create($base + ['tipo' => Presenza::PASSAGGIO, 'postazione_id' => $postazione?->id, 'ritardo_minuti' => $ritardo]);
-
-        return ['ok' => true, 'tipo' => Presenza::PASSAGGIO, 'ritardo' => $ritardo,
-            'message' => 'Passaggio registrato'.($postazione ? ' — '.$postazione->titolo : '').'.'.($ritardo !== null ? ' '.$this->descriviRitardo($ritardo, 'passaggio') : '')];
-    }
-
-    /** L'operatore che scansiona il codice sede si assegna il turno programmato di oggi (sostituzione) e timbra. */
-    public function sostituisci(User $operatore, string $codice, ?float $lat, ?float $lng): array
-    {
-        $qr = CodiceQr::where('codice', trim($codice))->where('stato', CodiceQr::ATTIVO)->where('tipo', CodiceQr::SEDE)->first();
-        if (! $qr) {
-            return $this->ko('Codice sede non valido.');
-        }
-
-        $turno = Turno::where('sede_id', $qr->sede_id)
-            ->where('stato', StatoTurno::Programmato->value)
-            ->whereDate('inizio', today())
-            ->where('fine', '>=', now()->subMinutes(self::MARGINE_MINUTI))
-            ->orderBy('inizio')
-            ->first();
+        $turno = $this->turnoAttivo($operatore);
 
         if (! $turno) {
-            return $this->ko('Nessun turno da sostituire oggi per questa sede.');
+            return $this->ko('Nessun turno attivo per te in questo momento.');
         }
 
-        return DB::transaction(function () use ($turno, $operatore, $codice, $lat, $lng) {
-            $precedente = $turno->operatore_id;
-            $turno->update(['operatore_id' => $operatore->id]);
-            $esito = $this->scansiona($operatore, $codice, $lat, $lng);
-
-            if (! $esito['ok']) {
-                $turno->update(['operatore_id' => $precedente]);
-            }
-
-            return $esito;
-        });
+        return $this->scansionaTurno($turno, $operatore, $codice, $lat, $lng, $note);
     }
 
-    private function descriviRitardo(int $minuti, string $evento): string
+    /** @return array{ok: bool, message: string, tipo?: string, ritardo?: int} */
+    public function scansionaTurno(Turno $turno, User $operatore, string $codice, ?float $lat, ?float $lng, ?string $note = null): array
     {
-        if ($minuti === 0) {
-            return 'Puntuale.';
-        }
-        $abs = abs($minuti);
-        $ritardoOk = $evento === 'fine' ? 'Uscita posticipata' : 'Sei in ritardo';
-        $anticipoOk = $evento === 'fine' ? 'Uscita anticipata' : 'Sei in anticipo';
+        $cod = Codice::where('codice', trim($codice))->where('stato', 'A')->first();
 
-        return $minuti > 0 ? "$ritardoOk di $abs minuti." : "$anticipoOk di $abs minuti.";
+        if (! $cod) {
+            return $this->ko('Qrcode turno non riconosciuto');
+        }
+
+        $sede = $turno->sede;
+        $km = $lat !== null && $lng !== null && $sede
+            ? Calcoli::distanzaKm($lat, $lng, (float) $sede->lat, (float) $sede->lng)
+            : 0.0;
+
+        if ($cod->tipo === 'S' && ($km * 1000) > (float) $sede?->distanza) {
+            return $this->ko('La tua posizione risulta essere superiore a '.$sede->distanza.' metri dalla sede operativa. contattare l\'amministrazione');
+        }
+
+        $postazione = null;
+        $aggiorna = null;
+
+        if ($cod->tipo === 'S') {
+            if (! Gda::where('id_turno', $turno->id)->exists()) {
+                $tipo = Gda::INIZIO;
+                $msg = 'Inizio turno registrato con successo';
+                $previsto = $turno->inizio;
+                $aggiorna = 'I';
+            } else {
+                $tipo = Gda::FINE;
+                $msg = 'Fine turno registrato con successo';
+                $previsto = $turno->fine;
+                $aggiorna = 'F';
+            }
+        } elseif ($cod->tipo === 'P') {
+            $tipo = Gda::PASSAGGIO;
+            $postazione = Postazione::where('id_codice', $cod->id)->first();
+            $msg = 'Passaggio postazione '.$postazione?->titolo.' registrato con successo';
+            $passaggi = Gda::where('id_turno', $turno->id)->where('tipo', 'P')->where('id_postazione', $postazione?->id)->count();
+            $previsto = $turno->inizio->copy()->addMinutes(max(1, $passaggi) * (int) $postazione?->minuti);
+        } else {
+            return $this->ko('Qrcode turno non riconosciuto');
+        }
+
+        $ritardo = Calcoli::ritardoMinuti($previsto, now());
+
+        Gda::create([
+            'id_operatore' => $operatore->id,
+            'id_cliente' => $turno->id_cliente,
+            'id_sede' => $turno->id_sede,
+            'id_turno' => $turno->id,
+            'id_postazione' => $postazione?->id,
+            'id_codice' => $cod->id,
+            'data' => now()->toDateString(),
+            'orario' => now()->format('H:i'),
+            'note_operatore' => $note,
+            'lat' => $lat,
+            'lng' => $lng,
+            'distanza' => $km,
+            'ritardo' => $ritardo,
+            'tipo' => $tipo,
+        ]);
+
+        if ($aggiorna) {
+            $turno->stato = $aggiorna;
+            if ($aggiorna === 'F') {
+                $turno->ore_lavorate = $this->oreLavorate($turno);
+            }
+            $turno->save();
+        }
+
+        $msg .= $ritardo > 0
+            ? ' — sei in ritardo di '.abs($ritardo).' minuti'
+            : ' — sei in anticipo di '.abs($ritardo).' minuti';
+
+        return ['ok' => true, 'tipo' => $tipo, 'ritardo' => $ritardo, 'message' => $msg];
+    }
+
+    /** Apertura/chiusura manuale (apriChiudiTurno): data/ora indicate dall'amministrazione. */
+    public function apriChiudi(Turno $turno, User $autore, string $stato, Carbon $quando, ?string $note = null): void
+    {
+        $previsto = $stato === 'I' ? $turno->inizio : $turno->fine;
+
+        Gda::create([
+            'id_operatore' => $autore->id,
+            'id_cliente' => $turno->id_cliente,
+            'id_sede' => $turno->id_sede,
+            'id_turno' => $turno->id,
+            'id_postazione' => null,
+            'id_codice' => $turno->sede?->id_codice,
+            'data' => $quando->toDateString(),
+            'orario' => $quando->format('H:i'),
+            'note_operatore' => $note,
+            'lat' => $turno->sede?->lat,
+            'lng' => $turno->sede?->lng,
+            'distanza' => 0,
+            'ritardo' => Calcoli::ritardoMinuti($previsto, $quando),
+            'tipo' => $stato,
+        ]);
+
+        $turno->stato = $stato;
+        $turno->note_operatore = $note;
+        if ($stato === 'F') {
+            $turno->ore_lavorate = $this->oreLavorate($turno);
+        }
+        $turno->save();
+    }
+
+    /** L'operatore scansiona il codice sede e prende il turno programmato di oggi della sede (actionSostituisci). */
+    public function sostituisci(User $operatore, string $codice, ?float $lat, ?float $lng, ?string $note = null): array
+    {
+        $cod = Codice::where('codice', trim($codice))->first();
+
+        $turno = $cod ? Turno::where('id_sede', $cod->id_sede)
+            ->where('stato', 'P')
+            ->where(fn ($q) => $q->whereDate('data_inizio', today())->orWhereDate('data_fine', today()))
+            ->orderBy('data_inizio')->orderBy('ora_inizio')
+            ->first() : null;
+
+        if (! $turno) {
+            return $this->ko('Turno non trovato');
+        }
+
+        $turno->id_operatore = $operatore->id;
+        $turno->save();
+
+        return $this->scansionaTurno($turno, $operatore, $codice, $lat, $lng, $note);
+    }
+
+    private function oreLavorate(Turno $turno): ?float
+    {
+        $inizio = Gda::where('id_turno', $turno->id)->where('tipo', 'I')->first();
+        $fine = Gda::where('id_turno', $turno->id)->where('tipo', 'F')->first();
+
+        return $inizio && $fine ? Calcoli::ore($inizio->rilevata_at, $fine->rilevata_at) : null;
     }
 
     private function ko(string $message): array

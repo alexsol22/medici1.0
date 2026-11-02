@@ -13,6 +13,16 @@ return [
     |
     */
 
+    /*
+    | Cartella dei documenti dell'app Yii (protected/documenti), condivisa per mantenere i file identici.
+    */
+    'documenti_path' => env('DOCUMENTI_PATH', base_path('s420/protected/documenti')),
+
+    /*
+    | Cartella degli avatar dell'app Yii (images/avatar); nel DB resta solo il nome file.
+    */
+    'avatar_path' => env('AVATAR_PATH', base_path('s420/images/avatar')),
+
     'default' => env('FILESYSTEM_DISK', 'local'),
 
     /*

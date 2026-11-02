@@ -3,10 +3,10 @@
 namespace App\Livewire;
 
 use App\Livewire\Concerns\ConAccesso;
-use App\Models\CodiceQr;
-use App\Models\Postazione;
-use App\Models\QrAziendale;
-use Illuminate\Support\Facades\DB;
+use App\Models\Legacy\Codice;
+use App\Models\Legacy\Documento;
+use App\Models\Legacy\Postazione;
+use App\Models\Legacy\Turno;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -38,7 +38,12 @@ class Sedi extends Component
     public function elimina(int $id): void
     {
         $this->soloStaff();
-        $this->sediVisibili()->findOrFail($id)->delete();
+        $sede = $this->sediVisibili()->findOrFail($id);
+
+        Documento::where('tipo', 'S')->where('id_tipo', $sede->id)->delete();
+        Turno::where('id_sede', $sede->id)->delete();
+        Postazione::where('id_sede', $sede->id)->delete();
+        $sede->delete();
     }
 
     public function qr(int $id): void
@@ -69,38 +74,32 @@ class Sedi extends Component
         ]);
         $sede = $this->sediVisibili()->findOrFail($this->sedePostazioni);
 
-        DB::transaction(function () use ($sede) {
-            $post = Postazione::create([
-                'sede_id' => $sede->id, 'cliente_id' => $sede->cliente_id,
-                'titolo' => $this->p['titolo'], 'minuti_passaggio' => $this->p['minuti_passaggio'] ?: null,
-            ]);
-            $post->update(['codice_qr_id' => CodiceQr::nuovo(CodiceQr::POSTAZIONE, $sede->id, $post->id)->id]);
-        });
+        $post = Postazione::create([
+            'id_sede' => $sede->id, 'id_cliente' => $sede->id_cliente,
+            'titolo' => $this->p['titolo'], 'minuti' => $this->p['minuti_passaggio'] ?: null,
+        ]);
+        $post->update(['id_codice' => Codice::nuovo(Codice::POSTAZIONE, $sede->id, $post->id)->id]);
         $this->p = ['titolo' => '', 'minuti_passaggio' => ''];
     }
 
     public function eliminaPostazione(int $id): void
     {
         $this->soloStaff();
-        Postazione::whereIn('sede_id', $this->sediVisibili()->select('sedi.id'))->findOrFail($id)->delete();
+        Postazione::whereIn('id_sede', $this->sediVisibili()->select('tc_sedi.id'))->findOrFail($id)->delete();
     }
 
     public function render()
     {
-        $sedi = $this->sediVisibili()->with(['cliente', 'codiceQr'])->withCount('postazioni')
-            ->when($this->filtroCliente, fn ($q) => $q->where('cliente_id', $this->filtroCliente))
-            ->when($this->cerca, fn ($q) => $q->where(fn ($w) => $w->where('descrizione', 'like', "%{$this->cerca}%")->orWhere('citta', 'like', "%{$this->cerca}%")))
+        $sedi = $this->sediVisibili()->with(['cliente', 'comune'])->withCount('postazioni')
+            ->when($this->filtroCliente, fn ($q) => $q->where('id_cliente', $this->filtroCliente))
+            ->when($this->cerca, fn ($q) => $q->where(fn ($w) => $w->where('descrizione', 'like', "%{$this->cerca}%")
+                ->orWhereHas('comune', fn ($c) => $c->where('comune', 'like', "%{$this->cerca}%"))))
             ->orderBy('descrizione')->paginate(9);
-
-        $loghi = QrAziendale::whereIn('sede_id', $sedi->pluck('id'))->whereNotNull('logo_path')->latest()->get()
-            ->unique('sede_id')->mapWithKeys(fn ($q) => [$q->sede_id => $q->logoDataUri()])->filter();
 
         return view('livewire.sedi', [
             'sedi' => $sedi,
-            'loghi' => $loghi,
             'clienti' => $this->clientiVisibili()->orderBy('ragione_sociale')->get(['id', 'ragione_sociale']),
-            'sedeCorrente' => $this->sedePostazioni ? $this->sediVisibili()->with('postazioni.codiceQr', 'codiceQr')->find($this->sedePostazioni) : null,
-            'giorni' => [1 => 'Lun', 2 => 'Mar', 3 => 'Mer', 4 => 'Gio', 5 => 'Ven', 6 => 'Sab', 7 => 'Dom'],
+            'sedeCorrente' => $this->sedePostazioni ? $this->sediVisibili()->with('postazioni.codice', 'codice')->find($this->sedePostazioni) : null,
         ]);
     }
 }

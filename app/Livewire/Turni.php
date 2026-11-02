@@ -2,13 +2,12 @@
 
 namespace App\Livewire;
 
-use App\Enums\StatoTurno;
 use App\Livewire\Concerns\ConAccesso;
-use App\Models\Presenza;
-use App\Models\Turno;
-use App\Models\User;
+use App\Models\Legacy\Admin;
+use App\Models\Legacy\Turno;
 use App\Services\Calcoli;
 use App\Services\PianificazioneTurni;
+use App\Services\Timbratura;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Layout;
@@ -44,6 +43,10 @@ class Turni extends Component
 
     public ?int $turnoSelezionatoId = null;
 
+    public ?int $turnoModificaId = null;
+
+    public array $m = [];
+
     public array $f = [];
 
     public array $giorni = [];
@@ -71,13 +74,13 @@ class Turni extends Component
 
         if ($tipo === 'sede') {
             $this->sediVisibili()->findOrFail($id);
-            abort_unless($this->query()->where('sede_id', $id)->exists(), 404);
+            abort_unless($this->query()->where('id_sede', $id)->exists(), 404);
             $this->filtroSede = $id;
 
             return;
         }
 
-        abort_unless($this->query()->where('operatore_id', $id)->exists(), 404);
+        abort_unless($this->query()->where('id_operatore', $id)->exists(), 404);
         $this->filtroOperatore = $id;
     }
 
@@ -154,6 +157,51 @@ class Turni extends Component
         $this->turnoSelezionatoId = null;
     }
 
+    public function modifica(int $id): void
+    {
+        $this->soloStaff();
+        $t = $this->query()->findOrFail($id);
+        $this->m = [
+            'data_inizio' => $t->data_inizio->toDateString(), 'ora_inizio' => $t->ora_inizio,
+            'data_fine' => $t->data_fine->toDateString(), 'ora_fine' => $t->ora_fine,
+        ];
+        $this->turnoModificaId = $t->id;
+        $this->turnoSelezionatoId = null;
+        $this->resetValidation();
+    }
+
+    public function chiudiModifica(): void
+    {
+        $this->turnoModificaId = null;
+    }
+
+    public function aggiorna(): void
+    {
+        $this->soloStaff();
+        $this->validate([
+            'm.data_inizio' => 'required|date',
+            'm.data_fine' => 'required|date',
+            'm.ora_inizio' => 'required|date_format:H:i',
+            'm.ora_fine' => 'required|date_format:H:i',
+        ]);
+
+        $turno = $this->query()->findOrFail($this->turnoModificaId);
+        $inizio = Carbon::parse($this->m['data_inizio'].' '.$this->m['ora_inizio']);
+        $fine = Carbon::parse($this->m['data_fine'].' '.$this->m['ora_fine']);
+        if ($fine->lte($inizio)) {
+            $this->addError('m.ora_fine', 'La fine deve essere successiva all\'inizio.');
+
+            return;
+        }
+
+        $turno->update([
+            'data_inizio' => $inizio->toDateString(), 'ora_inizio' => $inizio->format('H:i'),
+            'data_fine' => $fine->toDateString(), 'ora_fine' => $fine->format('H:i'),
+            'ore' => Calcoli::ore($inizio, $fine),
+        ]);
+        $this->turnoModificaId = null;
+    }
+
     public function nuovoGiorno(string $data): void
     {
         $this->nuovo();
@@ -197,9 +245,9 @@ class Turni extends Component
     {
         $this->soloStaff();
         $this->validate([
-            'f.cliente_id' => 'required|exists:clienti,id',
-            'f.sede_id' => 'required|exists:sedi,id',
-            'f.operatore_id' => 'required|exists:users,id',
+            'f.cliente_id' => 'required|exists:tc_clienti,id',
+            'f.sede_id' => 'required|exists:tc_sedi,id',
+            'f.operatore_id' => 'required|exists:tc_admin,id',
             'f.data_inizio' => 'required|date',
             'f.data_fine' => 'required|date',
             'f.ora_inizio' => 'required|date_format:H:i',
@@ -207,7 +255,7 @@ class Turni extends Component
             'f.ripeti_fino' => 'nullable|date|after:f.data_inizio',
         ]);
 
-        $sede = $this->sediVisibili()->where('cliente_id', $this->f['cliente_id'])->findOrFail($this->f['sede_id']);
+        $sede = $this->sediVisibili()->where('id_cliente', $this->f['cliente_id'])->findOrFail($this->f['sede_id']);
         [$inizio, $fine] = $this->intervallo();
         if ($fine->lte($inizio)) {
             $this->addError('f.ora_fine', 'La fine deve essere successiva all\'inizio.');
@@ -220,16 +268,18 @@ class Turni extends Component
         $saltati = [];
 
         foreach ($piano->occorrenze($inizio, $fine, $ripetiFino, array_map('intval', $this->giorni)) as $o) {
-            $libero = $piano->operatoriDisponibili($o['inizio'], $o['fine'], $sede->cliente_id)->contains('id', (int) $this->f['operatore_id']);
+            $libero = $piano->operatoriDisponibili($o['inizio'], $o['fine'], $sede->id_cliente)->contains('id', (int) $this->f['operatore_id']);
             if (! $libero) {
                 $saltati[] = $o['inizio']->format('d/m');
 
                 continue;
             }
             Turno::create([
-                'operatore_id' => $this->f['operatore_id'], 'cliente_id' => $sede->cliente_id, 'sede_id' => $sede->id,
-                'inizio' => $o['inizio'], 'fine' => $o['fine'], 'ore' => Calcoli::ore($o['inizio'], $o['fine']),
-                'note' => $this->f['note'] ?: null,
+                'id_operatore' => $this->f['operatore_id'], 'id_cliente' => $sede->id_cliente, 'id_sede' => $sede->id,
+                'data_inizio' => $o['inizio']->toDateString(), 'ora_inizio' => $o['inizio']->format('H:i'),
+                'data_fine' => $o['fine']->toDateString(), 'ora_fine' => $o['fine']->format('H:i'),
+                'ore' => Calcoli::ore($o['inizio'], $o['fine']), 'stato' => 'P',
+                'note_operatore' => $this->f['note'] ?: null,
             ]);
             $creati++;
         }
@@ -249,23 +299,17 @@ class Turni extends Component
         $this->query()->findOrFail($id)->delete();
     }
 
-    /** Apertura/chiusura manuale del turno da parte dell'amministrazione, con registro presenze. */
-    public function apriChiudi(int $id): void
+    /** Apertura/chiusura manuale del turno da parte dell'amministrazione (apriChiudiTurno di Yii). */
+    public function apriChiudi(int $id, Timbratura $timbratura): void
     {
         $this->soloStaff();
         $t = $this->query()->findOrFail($id);
-        $now = now();
-        $base = ['turno_id' => $t->id, 'operatore_id' => $t->operatore_id, 'cliente_id' => $t->cliente_id, 'sede_id' => $t->sede_id,
-            'rilevata_at' => $now, 'note' => 'Registrazione manuale ('.auth()->user()->nome_completo.')'];
 
-        if ($t->stato === StatoTurno::Programmato) {
-            Presenza::create($base + ['tipo' => Presenza::INIZIO, 'ritardo_minuti' => Calcoli::ritardoMinuti($t->inizio, $now)]);
-            $t->update(['stato' => StatoTurno::Iniziato]);
-        } elseif ($t->stato === StatoTurno::Iniziato) {
-            $inizio = $t->presenze()->where('tipo', Presenza::INIZIO)->first();
-            Presenza::create($base + ['tipo' => Presenza::FINE, 'ritardo_minuti' => Calcoli::ritardoMinuti($t->fine, $now)]);
-            $t->update(['stato' => StatoTurno::Completato, 'ore_lavorate' => Calcoli::ore($inizio?->rilevata_at ?? $t->inizio, $now)]);
+        if (! in_array($t->stato, ['P', 'I'], true)) {
+            return;
         }
+
+        $timbratura->apriChiudi($t, auth()->user(), $t->stato === 'P' ? 'I' : 'F', now(), 'Registrazione manuale ('.auth()->user()->nome_completo.')');
     }
 
     private function allineaSelezioniCalendario(): void
@@ -280,15 +324,15 @@ class Turni extends Component
         $u = auth()->user();
 
         return Turno::query()
-            ->when($u->isOperatore(), fn ($q) => $q->where('operatore_id', $u->id))
-            ->when(! $u->isOperatore(), fn ($q) => $q->whereIn('cliente_id', $this->clientiVisibili()->select('clienti.id')));
+            ->when($u->isOperatore(), fn ($q) => $q->where('id_operatore', $u->id))
+            ->when(! $u->isOperatore(), fn ($q) => $q->whereIn('id_cliente', $this->clientiVisibili()->select('tc_clienti.id')));
     }
 
     private function applicaRicerca(Builder $query): Builder
     {
         return $query
-            ->when($this->filtroSede, fn (Builder $query) => $query->where('sede_id', $this->filtroSede))
-            ->when($this->filtroOperatore, fn (Builder $query) => $query->where('operatore_id', $this->filtroOperatore));
+            ->when($this->filtroSede, fn (Builder $query) => $query->where('id_sede', $this->filtroSede))
+            ->when($this->filtroOperatore, fn (Builder $query) => $query->where('id_operatore', $this->filtroOperatore));
     }
 
     private function calendario(): array
@@ -301,8 +345,8 @@ class Turni extends Component
             default => [$primo->copy()->startOfMonth()->startOfWeek(), $primo->copy()->endOfMonth()->endOfWeek()],
         };
         $perGiorno = $this->applicaRicerca($this->query()->with(['operatore', 'sede']))
-            ->whereBetween('inizio', [$da->copy()->startOfDay(), $a->copy()->endOfDay()])
-            ->orderBy('inizio')->get()
+            ->whereBetween('data_inizio', [$da->toDateString(), $a->toDateString()])
+            ->orderBy('data_inizio')->orderBy('ora_inizio')->get()
             ->groupBy(fn ($t) => $t->inizio->toDateString());
 
         return ['primo' => $primo, 'da' => $da, 'a' => $a, 'turni' => $perGiorno];
@@ -313,9 +357,9 @@ class Turni extends Component
         $turni = null;
         if ($this->vista === 'lista') {
             $turni = $this->applicaRicerca($this->query()->with(['operatore', 'sede.cliente']))
-                ->when($this->da, fn ($q) => $q->where('inizio', '>=', Carbon::parse($this->da)->startOfDay()))
-                ->when($this->a, fn ($q) => $q->where('inizio', '<=', Carbon::parse($this->a)->endOfDay()))
-                ->orderBy('inizio')->paginate(15);
+                ->when($this->da, fn ($q) => $q->where('data_inizio', '>=', Carbon::parse($this->da)->toDateString()))
+                ->when($this->a, fn ($q) => $q->where('data_inizio', '<=', Carbon::parse($this->a)->toDateString()))
+                ->orderBy('data_inizio')->orderBy('ora_inizio')->paginate(15);
         }
         $calendario = $this->vista === 'lista' ? null : $this->calendario();
 
@@ -326,7 +370,7 @@ class Turni extends Component
         $disponibili = collect();
         $sediForm = collect();
         if ($this->modal) {
-            $sediForm = $this->sediVisibili()->where('cliente_id', $this->f['cliente_id'] ?: 0)->orderBy('descrizione')->get(['id', 'descrizione']);
+            $sediForm = $this->sediVisibili()->where('id_cliente', $this->f['cliente_id'] ?: 0)->orderBy('descrizione')->get(['id', 'descrizione']);
             $intervallo = $this->intervallo();
             if ($intervallo !== null && $intervallo[1]->gt($intervallo[0])) {
                 $disponibili = $piano->operatoriDisponibili($intervallo[0], $intervallo[1], $this->f['cliente_id'] ?: null);
@@ -334,9 +378,9 @@ class Turni extends Component
         }
 
         $suggerimentiSedi = $this->sediVisibili()
-            ->whereIn('id', $this->query()->select('sede_id')->distinct())
+            ->whereIn('id', $this->query()->select('id_sede')->distinct())
             ->orderBy('descrizione')
-            ->get(['id', 'descrizione', 'citta'])
+            ->get()
             ->map(fn ($sede) => [
                 'id' => $sede->id,
                 'label' => $sede->descrizione,
@@ -345,10 +389,10 @@ class Turni extends Component
             ])
             ->values();
 
-        $suggerimentiOperatori = User::query()
-            ->whereIn('id', $this->query()->select('operatore_id')->distinct())
+        $suggerimentiOperatori = Admin::query()
+            ->whereIn('id', $this->query()->select('id_operatore')->distinct())
             ->orderBy('cognome')
-            ->get(['id', 'name', 'cognome', 'email'])
+            ->get()
             ->map(fn ($operatore) => [
                 'id' => $operatore->id,
                 'label' => $operatore->nome_completo,
@@ -359,10 +403,15 @@ class Turni extends Component
 
         $sedeSelezionata = $this->filtroSede ? $this->sediVisibili()->find($this->filtroSede) : null;
         $operatoreSelezionato = $this->filtroOperatore
-            ? $this->query()->where('operatore_id', $this->filtroOperatore)->with('operatore')->first()?->operatore
+            ? $this->query()->where('id_operatore', $this->filtroOperatore)->with('operatore')->first()?->operatore
+            : null;
+
+        $turnoModifica = $this->turnoModificaId
+            ? $this->query()->with(['operatore', 'sede.cliente'])->find($this->turnoModificaId)
             : null;
 
         return view('livewire.turni', [
+            'turnoModifica' => $turnoModifica,
             'turni' => $turni,
             'calendario' => $calendario,
             'turnoDettaglio' => $turnoDettaglio,

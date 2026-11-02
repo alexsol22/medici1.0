@@ -34,11 +34,11 @@ class Amministratori extends Component
     protected function rules(): array
     {
         return [
-            'f.name' => 'required|string|max:255',
-            'f.cognome' => 'required|string|max:255',
-            'f.email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->userId)],
+            'f.name' => 'required|string|max:30',
+            'f.cognome' => 'required|string|max:30',
+            'f.email' => ['required', 'email', 'max:40', 'max:255', Rule::unique('tc_admin', 'email')->ignore($this->userId)],
             'f.cellulare' => 'nullable|string|max:20',
-            'f.password' => [$this->userId ? 'nullable' : 'required', 'string', 'min:8'],
+            'f.password' => [$this->userId ? 'nullable' : 'required', 'string', 'min:8', 'max:40'],
         ];
     }
 
@@ -108,7 +108,7 @@ class Amministratori extends Component
 
     private function amministratori(): Builder
     {
-        return User::query()->where('ruolo', Ruolo::Admin->value);
+        return User::query()->where('user_type', 2);
     }
 
     public function render()
@@ -117,11 +117,11 @@ class Amministratori extends Component
 
         $amministratori = $this->amministratori()
             ->when($this->cerca, fn (Builder $query) => $query->where(fn (Builder $where) => $where
-                ->where('name', 'like', "%{$this->cerca}%")
+                ->where('nome', 'like', "%{$this->cerca}%")
                 ->orWhere('cognome', 'like', "%{$this->cerca}%")
                 ->orWhere('email', 'like', "%{$this->cerca}%")))
             ->orderBy('cognome')
-            ->orderBy('name')
+            ->orderBy('nome')
             ->paginate(10);
 
         return view('livewire.amministratori', compact('amministratori'));

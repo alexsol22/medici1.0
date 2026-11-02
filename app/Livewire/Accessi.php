@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Models\Accesso as AccessoUtente;
+use App\Models\Legacy\Tracking;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
@@ -28,8 +28,10 @@ class Accessi extends Component
     {
         $this->soloStaff();
 
-        $accessi = AccessoUtente::query()
-            ->orderByDesc('accesso_at')
+        $accessi = Tracking::query()
+            ->with('utente')
+            ->where('action', 'like', 'Accesso utente%')
+            ->orderByDesc('data_view')
             ->orderByDesc('id')
             ->paginate(25);
 

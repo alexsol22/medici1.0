@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Models\Turno;
+use App\Models\Legacy\Turno;
 use App\Services\Timbratura;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -34,8 +34,10 @@ class Scansione extends Component
 
         return view('livewire.scansione', [
             'turno' => $turno,
-            'presenze' => $turno ? $turno->presenze()->with('postazione')->orderBy('rilevata_at')->get() : collect(),
-            'prossimi' => Turno::with('sede')->where('operatore_id', $user->id)->where('inizio', '>', now())->orderBy('inizio')->limit(5)->get(),
+            'presenze' => $turno ? $turno->presenze()->with('postazione')->orderBy('data')->orderBy('orario')->get() : collect(),
+            'prossimi' => Turno::with('sede')->where('id_operatore', $user->id)
+                ->whereRaw("CONCAT(data_inizio,' ',ora_inizio) > ?", [now()->format('Y-m-d H:i')])
+                ->orderBy('data_inizio')->orderBy('ora_inizio')->limit(5)->get(),
         ]);
     }
 }

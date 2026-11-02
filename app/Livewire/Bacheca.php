@@ -2,8 +2,9 @@
 
 namespace App\Livewire;
 
-use App\Models\Avviso;
-use App\Models\User;
+use App\Models\Legacy;
+use App\Models\Legacy\Admin;
+use App\Models\Legacy\BachecaView;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -37,10 +38,10 @@ class Bacheca extends Component
     {
         abort_unless(auth()->user()->isStaff(), 403);
         $this->validate([
-            'f.titolo' => 'required|string|max:255',
+            'f.titolo' => 'required|string|max:150',
             'f.testo' => 'required|string|max:5000',
             'destinatari' => 'array',
-            'destinatari.*' => 'exists:users,id',
+            'destinatari.*' => 'exists:tc_admin,id',
         ]);
         if (! $this->f['per_tutti'] && ! $this->destinatari) {
             $this->addError('destinatari', 'Seleziona almeno un destinatario.');
@@ -48,13 +49,16 @@ class Bacheca extends Component
             return;
         }
 
-        DB::transaction(function () {
-            $avviso = Avviso::create([
+        DB::connection()->transaction(function () {
+            $avviso = Legacy\Bacheca::create([
                 'titolo' => $this->f['titolo'], 'testo' => $this->f['testo'],
-                'per_tutti' => (bool) $this->f['per_tutti'], 'autore_id' => auth()->id(),
+                'tutti' => $this->f['per_tutti'] ? 'Y' : 'N', 'data_invio' => today(),
             ]);
-            $ids = $this->f['per_tutti'] ? User::where('ruolo', 'operatore')->where('attivo', true)->pluck('id') : collect($this->destinatari);
-            $avviso->destinatari()->attach($ids->mapWithKeys(fn ($id) => [$id => ['letto_at' => null]])->all());
+            $ids = $this->f['per_tutti'] ? $this->operatoriAttivi()->pluck('id') : collect($this->destinatari);
+            $avviso->update(['quanti' => $ids->count()]);
+            foreach ($ids as $id) {
+                BachecaView::create(['id_bacheca' => $avviso->id, 'id_operatore' => $id]);
+            }
         });
 
         $this->modal = false;
@@ -62,26 +66,40 @@ class Bacheca extends Component
 
     public function segnaLetto(int $id): void
     {
-        DB::table('avviso_user')->where('avviso_id', $id)->where('user_id', auth()->id())->whereNull('letto_at')->update(['letto_at' => now()]);
+        BachecaView::where('id_bacheca', $id)->where('id_operatore', auth()->id())
+            ->where(fn ($q) => $q->whereNull('visto')->orWhere('visto', 'N'))
+            ->update(['visto' => 'Y', 'data_vista' => now()]);
     }
 
     public function elimina(int $id): void
     {
         abort_unless(auth()->user()->isStaff(), 403);
-        Avviso::findOrFail($id)->delete();
+        BachecaView::where('id_bacheca', $id)->delete();
+        Legacy\Bacheca::findOrFail($id)->delete();
+    }
+
+    private function operatoriAttivi()
+    {
+        return Admin::where('user_type', 4)->where('attivo', 'Y');
     }
 
     public function render()
     {
         $u = auth()->user();
-        $avvisi = $u->isOperatore()
-            ? Avviso::join('avviso_user', 'avvisi.id', '=', 'avviso_user.avviso_id')->where('avviso_user.user_id', $u->id)
-                ->select('avvisi.*', 'avviso_user.letto_at')->latest('avvisi.created_at')->get()
-            : Avviso::withCount(['destinatari', 'destinatari as letti_count' => fn ($q) => $q->whereNotNull('avviso_user.letto_at')])->latest()->get();
+        if ($u->isOperatore()) {
+            $viste = BachecaView::where('id_operatore', $u->id)->get()->keyBy('id_bacheca');
+            $avvisi = Legacy\Bacheca::whereIn('id', $viste->keys())->orderByDesc('data_invio')->orderByDesc('id')->get()
+                ->each(fn ($a) => $a->letto = (bool) $viste[$a->id]->visto);
+        } else {
+            $avvisi = Legacy\Bacheca::withCount([
+                'visualizzazioni',
+                'visualizzazioni as letti_count' => fn ($q) => $q->where('visto', 'Y'),
+            ])->orderByDesc('data_invio')->orderByDesc('id')->get();
+        }
 
         return view('livewire.bacheca', [
             'avvisi' => $avvisi,
-            'operatori' => $u->isStaff() ? User::where('ruolo', 'operatore')->where('attivo', true)->orderBy('cognome')->get() : collect(),
+            'operatori' => $u->isStaff() ? $this->operatoriAttivi()->orderBy('cognome')->get() : collect(),
         ]);
     }
 }

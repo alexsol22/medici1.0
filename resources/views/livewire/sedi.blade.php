@@ -14,11 +14,7 @@
             <div wire:key="s{{ $s->id }}" class="card flex flex-col p-4 sm:p-5">
                 <div class="flex items-start gap-4">
                     <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sky-100 text-sky-600 ring-2 ring-white shadow sm:h-16 sm:w-16">
-                        @if ($loghi->has($s->id))
-                            <img src="{{ $loghi[$s->id] }}" alt="" class="h-full w-full object-cover">
-                        @else
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4M9 10h.01M12 10h.01M15 10h.01M9 13h.01M12 13h.01M15 13h.01"/></svg>
-                        @endif
                     </div>
                     <div class="min-w-0 flex-1">
                         <p class="truncate text-xs font-semibold uppercase tracking-wide text-sky-600">{{ $s->cliente->ragione_sociale }}</p>
@@ -56,12 +52,12 @@
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="rounded-2xl bg-sky-50 p-4 text-center">
                         <p class="mb-2 text-sm font-semibold text-slate-700">Sede (inizio/fine turno)</p>
-                        @if ($sedeCorrente->codiceQr)<div class="mx-auto w-40">{!! $sedeCorrente->codiceQr->svg(160) !!}</div><p class="mt-1 font-mono text-xs text-slate-500">{{ $sedeCorrente->codiceQr->codice }}</p>@endif
+                        @if ($sedeCorrente->codice)<div class="mx-auto w-40">{!! $sedeCorrente->codice->svg(160) !!}</div><p class="mt-1 font-mono text-xs text-slate-500">{{ $sedeCorrente->codice->codice }}</p>@endif
                     </div>
                     @foreach ($sedeCorrente->postazioni as $post)
                         <div wire:key="p{{ $post->id }}" class="rounded-2xl bg-sky-50 p-4 text-center">
                             <p class="mb-2 text-sm font-semibold text-slate-700">{{ $post->titolo }} @if ($post->minuti_passaggio)<span class="text-xs font-normal text-slate-500">· ogni {{ $post->minuti_passaggio }} min</span>@endif</p>
-                            @if ($post->codiceQr)<div class="mx-auto w-40">{!! $post->codiceQr->svg(160) !!}</div><p class="mt-1 font-mono text-xs text-slate-500">{{ $post->codiceQr->codice }}</p>@endif
+                            @if ($post->codice)<div class="mx-auto w-40">{!! $post->codice->svg(160) !!}</div><p class="mt-1 font-mono text-xs text-slate-500">{{ $post->codice->codice }}</p>@endif
                             @if (auth()->user()->isStaff())<button wire:click="eliminaPostazione({{ $post->id }})" wire:confirm="Eliminare la postazione?" class="btn-danger mt-2 !px-3 !py-1">Elimina</button>@endif
                         </div>
                     @endforeach

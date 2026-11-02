@@ -4,7 +4,7 @@ namespace App\Livewire;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -46,9 +46,9 @@ class Profilo extends Component
     {
         $user = $this->utente();
         $dati = $this->validate([
-            'name' => 'required|string|max:255',
-            'cognome' => 'required|string|max:255',
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'name' => 'required|string|max:30',
+            'cognome' => 'required|string|max:30',
+            'email' => ['required', 'email', 'max:40', Rule::unique('tc_admin', 'email')->ignore($user->id)],
             'cellulare' => 'nullable|string|max:20',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
@@ -62,7 +62,10 @@ class Profilo extends Component
 
         if ($this->foto) {
             $this->eliminaFotoEsistente($user);
-            $aggiornamenti['foto_path'] = $this->foto->store('avatar', 'local');
+            $nome = 'avatar_'.$user->id.'.'.strtolower($this->foto->getClientOriginalExtension());
+            File::ensureDirectoryExists(config('filesystems.avatar_path'));
+            File::move($this->foto->getRealPath(), rtrim(config('filesystems.avatar_path'), '/').'/'.$nome);
+            $aggiornamenti['foto_path'] = $nome;
             $this->foto = null;
         }
 
@@ -82,9 +85,15 @@ class Profilo extends Component
     public function cambiaPassword(): void
     {
         $this->validate([
-            'password_attuale' => 'required|current_password',
-            'password' => 'required|string|min:8|confirmed|different:password_attuale',
+            'password_attuale' => 'required',
+            'password' => 'required|string|min:6|max:40|confirmed|different:password_attuale',
         ], [], ['password_attuale' => 'password attuale', 'password' => 'nuova password']);
+
+        if (! hash_equals((string) $this->utente()->getRawOriginal('password'), $this->password_attuale)) {
+            $this->addError('password_attuale', 'La password attuale non è corretta.');
+
+            return;
+        }
 
         $this->utente()->update(['password' => $this->password]);
         $this->reset('password_attuale', 'password', 'password_confirmation');
@@ -102,7 +111,7 @@ class Profilo extends Component
     private function eliminaFotoEsistente(User $user): void
     {
         if ($user->foto_path) {
-            Storage::disk('local')->delete($user->foto_path);
+            File::delete(rtrim(config('filesystems.avatar_path'), '/').'/'.basename($user->foto_path));
         }
     }
 

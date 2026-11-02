@@ -2,7 +2,7 @@
 
     <div class="card overflow-hidden">
         @if ($turno)
-            @php $inCorso = $turno->stato === \App\Enums\StatoTurno::Iniziato; @endphp
+            @php $inCorso = $turno->stato === 'I'; @endphp
             <div class="p-6 text-center">
                 <span class="inline-block rounded-full px-4 py-1 text-sm font-bold uppercase tracking-wide {{ $inCorso ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700' }}">
                     {{ $inCorso ? 'Uscita' : 'Ingresso' }}
@@ -50,9 +50,9 @@
 
     @if ($turno)
         @php
-            $ingresso = $presenze->firstWhere('tipo', \App\Models\Presenza::INIZIO);
-            $uscita = $presenze->firstWhere('tipo', \App\Models\Presenza::FINE);
-            $passaggi = $presenze->where('tipo', \App\Models\Presenza::PASSAGGIO);
+            $ingresso = $presenze->firstWhere('tipo', \App\Models\Legacy\Gda::INIZIO);
+            $uscita = $presenze->firstWhere('tipo', \App\Models\Legacy\Gda::FINE);
+            $passaggi = $presenze->where('tipo', \App\Models\Legacy\Gda::PASSAGGIO);
             $stato = fn ($m) => $m === null ? '' : ($m === 0 ? 'Puntuale' : ($m > 0 ? '+'.$m.' min' : $m.' min'));
         @endphp
         <div class="card p-5">
@@ -93,7 +93,7 @@
         <div class="border-b border-sky-100 px-5 py-4 font-semibold text-slate-800">Prossimi turni</div>
         <ul class="divide-y divide-sky-50">
             @forelse ($prossimi as $p)
-                <li class="px-5 py-3 text-sm"><p class="font-medium text-slate-800">{{ $p->sede->descrizione }}</p><p class="text-xs text-slate-500">{{ $p->inizio->translatedFormat('D d/m') }} · {{ $p->inizio->format('H:i') }}–{{ $p->fine->format('H:i') }}</p></li>
+                <li class="px-5 py-3 text-sm"><p class="font-medium text-slate-800">{{ $p->sede?->descrizione }}</p><p class="text-xs text-slate-500">{{ $p->inizio->translatedFormat('D d/m') }} · {{ $p->inizio->format('H:i') }}–{{ $p->fine->format('H:i') }}</p></li>
             @empty
                 <li class="px-5 py-6 text-center text-sm text-slate-500">Nessun turno in programma.</li>
             @endforelse

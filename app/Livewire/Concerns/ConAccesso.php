@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Concerns;
 
-use App\Models\Cliente;
-use App\Models\Sede;
+use App\Models\Legacy\Cliente;
+use App\Models\Legacy\Sede;
 use Illuminate\Database\Eloquent\Builder;
 
 trait ConAccesso
@@ -15,7 +15,7 @@ trait ConAccesso
 
     protected function sediVisibili(): Builder
     {
-        return Sede::whereIn('cliente_id', $this->clientiVisibili()->select('clienti.id'));
+        return Sede::whereIn('id_cliente', $this->clientiVisibili()->select('tc_clienti.id'));
     }
 
     protected function soloStaff(): void

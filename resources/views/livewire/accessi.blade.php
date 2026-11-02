@@ -18,10 +18,10 @@
                 <tbody class="divide-y divide-sky-50">
                     @forelse ($accessi as $accesso)
                         <tr wire:key="accesso-{{ $accesso->id }}" class="hover:bg-sky-50/40">
-                            <td class="td font-semibold text-slate-800">{{ $accesso->nome_completo }}</td>
-                            <td class="td">{{ $accesso->email }}</td>
-                            <td class="td whitespace-nowrap">{{ $accesso->accesso_at->format('d/m/Y H:i:s') }}</td>
-                            <td class="td">{{ $accesso->ip_address ?? '—' }}</td>
+                            <td class="td font-semibold text-slate-800">{{ $accesso->utente?->nome_completo ?? '—' }}</td>
+                            <td class="td">{{ $accesso->utente?->user }}</td>
+                            <td class="td whitespace-nowrap">{{ $accesso->data_view?->format('d/m/Y H:i') }}</td>
+                            <td class="td">{{ $accesso->addr ?? '—' }}</td>
                         </tr>
                     @empty
                         <tr>

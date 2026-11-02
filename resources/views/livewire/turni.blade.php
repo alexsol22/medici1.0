@@ -154,8 +154,8 @@
                         <div class="space-y-1">
                             @foreach ($periodoCalendario === 'mese' ? $giorno->take(3) : $giorno as $t)
                                 @php($c = ['programmato' => 'bg-sky-100 text-sky-800', 'in_corso' => 'bg-emerald-100 text-emerald-800', 'completato' => 'bg-teal-100 text-teal-800', 'non_timbrato' => 'bg-amber-100 text-amber-800', 'non_completato' => 'bg-orange-100 text-orange-800', 'non_eseguito' => 'bg-rose-100 text-rose-800'][$t->statoEffettivo()])
-                                <button type="button" wire:click="mostraTurno({{ $t->id }})" wire:key="turno-{{ $t->id }}" class="block w-full truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight hover:ring-1 hover:ring-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 {{ $c }}" title="{{ $t->sede->descrizione }} · {{ $t->operatore->nome_completo }}" aria-label="Apri turno delle {{ $t->inizio->format('H:i') }} presso {{ $t->sede->descrizione }} per {{ $t->operatore->nome_completo }}">
-                                    <span class="font-bold">{{ $t->inizio->format('H:i') }}</span> <span class="hidden sm:inline">{{ $t->operatore->cognome ?: $t->operatore->name }}</span>
+                                <button type="button" wire:click="mostraTurno({{ $t->id }})" wire:key="turno-{{ $t->id }}" class="block w-full truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight hover:ring-1 hover:ring-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 {{ $c }}" title="{{ $t->sede?->descrizione }} · {{ $t->operatore?->nome_completo }}" aria-label="Apri turno delle {{ $t->inizio->format('H:i') }} presso {{ $t->sede?->descrizione }} per {{ $t->operatore?->nome_completo }}">
+                                    <span class="font-bold">{{ $t->inizio->format('H:i') }}</span> <span class="hidden sm:inline">{{ $t->operatore?->cognome ?: $t->operatore?->nome }}</span>
                                 </button>
                             @endforeach
                             @if ($periodoCalendario === 'mese' && $giorno->count() > 3)
@@ -171,28 +171,27 @@
     @if ($vista === 'lista')
     <div class="card overflow-hidden"><div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-sky-100">
-            <thead class="bg-sky-50/60"><tr><th class="th">Data</th><th class="th">Orario</th><th class="th">Sede</th><th class="th">Operatore</th><th class="th">Ore</th><th class="th">Stato</th>@if ($staff)<th class="th"></th>@endif</tr></thead>
+            <thead class="bg-sky-50/60"><tr><th class="th">Ragione Sociale</th><th class="th">Sede</th><th class="th">Operatore</th><th class="th">Inizio Turno</th><th class="th">Fine Turno</th><th class="th">Ore</th><th class="th">Stato</th>@if ($staff)<th class="th text-center">Inizia</th><th class="th text-center">Chiudi</th><th class="th text-center">Mod</th><th class="th text-center">Can</th>@endif</tr></thead>
             <tbody class="divide-y divide-sky-50">
                 @forelse ($turni as $t)
-                    @php([$et, $cl] = \App\Models\Turno::etichette()[$t->statoEffettivo()])
+                    @php([$et, $cl] = \App\Models\Legacy\Turno::etichette()[$t->statoEffettivo()])
                     <tr wire:key="t{{ $t->id }}" class="hover:bg-sky-50/40">
-                        <td class="td whitespace-nowrap font-medium text-slate-800">{{ $t->inizio->locale('it')->translatedFormat('D d/m/Y') }}</td>
-                        <td class="td whitespace-nowrap">{{ $t->inizio->format('H:i') }}–{{ $t->fine->format('H:i') }}</td>
-                        <td class="td"><p>{{ $t->sede->descrizione }}</p><p class="text-xs text-slate-500">{{ $t->sede->cliente->ragione_sociale }}</p></td>
-                        <td class="td">{{ $t->operatore->nome_completo }}</td>
+                        <td class="td font-semibold text-slate-800">{{ $t->sede?->cliente?->ragione_sociale }}</td>
+                        <td class="td">{{ $t->sede?->descrizione }}</td>
+                        <td class="td">{{ $t->operatore?->nome_completo }}</td>
+                        <td class="td whitespace-nowrap">{{ $t->inizio->format('d/m/Y H:i') }}</td>
+                        <td class="td whitespace-nowrap">{{ $t->fine->format('d/m/Y H:i') }}</td>
                         <td class="td">{{ $t->ore }}@if ($t->ore_lavorate !== null) <span class="text-xs text-slate-500">({{ $t->ore_lavorate }} lav.)</span>@endif</td>
                         <td class="td"><span class="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold {{ $cl }}">{{ $et }}</span></td>
                         @if ($staff)
-                            <td class="td whitespace-nowrap text-right">
-                                @if ($t->stato !== \App\Enums\StatoTurno::Completato)
-                                    <button wire:click="apriChiudi({{ $t->id }})" wire:confirm="Registrare manualmente {{ $t->stato === \App\Enums\StatoTurno::Programmato ? 'l\'inizio' : 'la fine' }} del turno?" class="btn-soft !px-3 !py-1.5">{{ $t->stato === \App\Enums\StatoTurno::Programmato ? 'Apri' : 'Chiudi' }}</button>
-                                @endif
-                                <button wire:click="elimina({{ $t->id }})" wire:confirm="Eliminare il turno?" class="btn-danger !px-3 !py-1.5">Elimina</button>
-                            </td>
+                            <td class="td text-center">@if ($t->stato === 'P')<button wire:click="apriChiudi({{ $t->id }})" wire:confirm="Registrare manualmente l'inizio del turno?" class="btn-soft !px-3 !py-1.5">Inizia</button>@endif</td>
+                            <td class="td text-center">@if ($t->stato === 'I')<button wire:click="apriChiudi({{ $t->id }})" wire:confirm="Registrare manualmente la fine del turno?" class="btn-soft !px-3 !py-1.5">Chiudi</button>@endif</td>
+                            <td class="td text-center"><button wire:click="modifica({{ $t->id }})" class="btn-soft !px-3 !py-1.5">Mod</button></td>
+                            <td class="td text-center"><button wire:click="elimina({{ $t->id }})" wire:confirm="Eliminare il turno?" class="btn-danger !px-3 !py-1.5">Can</button></td>
                         @endif
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="td py-10 text-center text-slate-500">Nessun turno nel periodo selezionato.</td></tr>
+                    <tr><td colspan="11" class="td py-10 text-center text-slate-500">Nessun turno nel periodo selezionato.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -232,14 +231,14 @@
     @endif
 
     @if ($turnoDettaglio)
-        @php([$etichettaStato, $classeStato] = \App\Models\Turno::etichette()[$turnoDettaglio->statoEffettivo()])
+        @php([$etichettaStato, $classeStato] = \App\Models\Legacy\Turno::etichette()[$turnoDettaglio->statoEffettivo()])
         <x-ui.modal title="Dettaglio turno" close="chiudiDettaglioTurno">
             <dl class="grid gap-4 sm:grid-cols-2">
                 <div><dt class="text-xs font-semibold uppercase text-slate-500">Data</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->inizio->locale('it')->translatedFormat('l d F Y') }}</dd></div>
                 <div><dt class="text-xs font-semibold uppercase text-slate-500">Orario</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->inizio->format('H:i') }}–{{ $turnoDettaglio->fine->format('H:i') }}</dd></div>
-                <div><dt class="text-xs font-semibold uppercase text-slate-500">Sede</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->sede->descrizione }}</dd></div>
-                <div><dt class="text-xs font-semibold uppercase text-slate-500">Cliente</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->sede->cliente->ragione_sociale }}</dd></div>
-                <div><dt class="text-xs font-semibold uppercase text-slate-500">Operatore</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->operatore->nome_completo }}</dd></div>
+                <div><dt class="text-xs font-semibold uppercase text-slate-500">Sede</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->sede?->descrizione }}</dd></div>
+                <div><dt class="text-xs font-semibold uppercase text-slate-500">Cliente</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->sede?->cliente?->ragione_sociale }}</dd></div>
+                <div><dt class="text-xs font-semibold uppercase text-slate-500">Operatore</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->operatore?->nome_completo }}</dd></div>
                 <div><dt class="text-xs font-semibold uppercase text-slate-500">Stato</dt><dd class="mt-1"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $classeStato }}">{{ $etichettaStato }}</span></dd></div>
                 <div><dt class="text-xs font-semibold uppercase text-slate-500">Ore previste</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoDettaglio->ore }}</dd></div>
                 @if ($turnoDettaglio->ore_lavorate !== null)
@@ -247,7 +246,28 @@
                 @endif
                 <div class="sm:col-span-2"><dt class="text-xs font-semibold uppercase text-slate-500">Note</dt><dd class="mt-1 whitespace-pre-line text-sm text-slate-700">{{ $turnoDettaglio->note ?: 'Nessuna nota' }}</dd></div>
             </dl>
-            <div class="mt-5 flex justify-end"><button type="button" wire:click="chiudiDettaglioTurno" class="btn-soft">Chiudi</button></div>
+            <div class="mt-5 flex justify-end gap-2">@if ($staff)<button type="button" wire:click="modifica({{ $turnoDettaglio->id }})" class="btn-primary">Modifica</button>@endif<button type="button" wire:click="chiudiDettaglioTurno" class="btn-soft">Chiudi</button></div>
+        </x-ui.modal>
+    @endif
+    @if ($turnoModifica)
+        <x-ui.modal title="Modifica turno" close="chiudiModifica" wide>
+            <form wire:submit="aggiorna" class="space-y-4">
+                <dl class="grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-3">
+                    <div><dt class="text-xs font-semibold uppercase text-slate-500">Ragione sociale</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoModifica->sede?->cliente?->ragione_sociale }}</dd></div>
+                    <div><dt class="text-xs font-semibold uppercase text-slate-500">Sede</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoModifica->sede?->descrizione }}</dd></div>
+                    <div><dt class="text-xs font-semibold uppercase text-slate-500">Operatore</dt><dd class="mt-1 font-medium text-slate-800">{{ $turnoModifica->operatore?->nome_completo }}</dd></div>
+                </dl>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-ui.field label="Data inizio" name="m.data_inizio"><input type="date" wire:model="m.data_inizio" class="input"></x-ui.field>
+                    <x-ui.field label="Ora inizio" name="m.ora_inizio"><input type="time" wire:model="m.ora_inizio" class="input"></x-ui.field>
+                    <x-ui.field label="Data fine" name="m.data_fine"><input type="date" wire:model="m.data_fine" class="input"></x-ui.field>
+                    <x-ui.field label="Ora fine" name="m.ora_fine"><input type="time" wire:model="m.ora_fine" class="input"></x-ui.field>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" wire:click="chiudiModifica" class="btn-soft">Annulla</button>
+                    <button class="btn-primary">Salva</button>
+                </div>
+            </form>
         </x-ui.modal>
     @endif
 </div>

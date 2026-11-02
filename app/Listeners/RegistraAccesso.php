@@ -2,7 +2,7 @@
 
 namespace App\Listeners;
 
-use App\Models\Accesso;
+use App\Models\Legacy\Tracking;
 use App\Models\User;
 use Illuminate\Auth\Events\Login;
 
@@ -16,12 +16,14 @@ class RegistraAccesso
             return;
         }
 
-        Accesso::create([
-            'user_id' => $user->id,
-            'nome_completo' => $user->nome_completo,
-            'email' => $user->email,
-            'ip_address' => request()->ip(),
-            'accesso_at' => now(),
+        Tracking::create([
+            'id_user' => $user->id,
+            'addr' => (string) request()->ip(),
+            'host' => '',
+            'agent' => substr((string) request()->userAgent(), 0, 255),
+            'pagina' => '',
+            'data_view' => now()->format('Y-m-d H:i'),
+            'action' => 'Accesso utente '.$user->user,
         ]);
     }
 }

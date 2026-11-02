@@ -47,14 +47,14 @@
                     @forelse ($prossimiTurni as $turno)
                         <tr wire:key="dashboard-turno-{{ $turno->id }}" class="hover:bg-sky-50/40">
                             <td class="td whitespace-nowrap">
-                                <p class="font-semibold text-slate-800">{{ $turno->inizio->format('d/m/Y') }}</p>
-                                <p class="text-xs text-slate-500">{{ $turno->inizio->format('H:i') }}–{{ $turno->fine->format('H:i') }}</p>
+                                <p class="font-semibold text-slate-800">{{ $turno->data_inizio?->format('d/m/Y') }}</p>
+                                <p class="text-xs text-slate-500">{{ $turno->ora_inizio }}–{{ $turno->ora_fine }}</p>
                             </td>
                             <td class="td">
-                                <p class="font-medium text-slate-800">{{ $turno->cliente->ragione_sociale }}</p>
-                                <p class="text-xs text-slate-500">{{ $turno->sede->descrizione }}</p>
+                                <p class="font-medium text-slate-800">{{ $turno->cliente?->ragione_sociale }}</p>
+                                <p class="text-xs text-slate-500">{{ $turno->sede?->descrizione }}</p>
                             </td>
-                            <td class="td">{{ $turno->operatore->nome_completo }}</td>
+                            <td class="td">{{ $turno->operatore?->nome_completo }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="3" class="td py-10 text-center text-slate-500">Non ci sono turni futuri programmati.</td></tr>

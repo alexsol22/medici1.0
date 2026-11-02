@@ -2,11 +2,10 @@
 
 namespace App\Livewire;
 
-use App\Enums\Ruolo;
 use App\Livewire\Concerns\ConAccesso;
-use App\Models\Sede;
-use App\Models\Turno;
-use App\Models\User;
+use App\Models\Legacy\Admin;
+use App\Models\Legacy\Sede;
+use App\Models\Legacy\Turno;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -22,21 +21,22 @@ class Dashboard extends Component
         $this->soloStaff();
 
         $clientiVisibili = $this->clientiVisibili();
-        $idClientiVisibili = (clone $clientiVisibili)->select('clienti.id');
-        $turniVisibili = Turno::query()->whereIn('cliente_id', clone $idClientiVisibili);
+        $idClientiVisibili = (clone $clientiVisibili)->select('tc_clienti.id');
+        $turniVisibili = Turno::query()->whereIn('id_cliente', clone $idClientiVisibili);
         $oggi = today();
 
         $metriche = [
             ['nome' => 'Clienti', 'valore' => $clientiVisibili->count(), 'destinazione' => 'clienti'],
-            ['nome' => 'Sedi', 'valore' => Sede::query()->whereIn('cliente_id', clone $idClientiVisibili)->count(), 'destinazione' => 'sedi'],
-            ['nome' => 'Operatori attivi', 'valore' => User::query()->where('ruolo', Ruolo::Operatore->value)->where('attivo', true)->count(), 'destinazione' => 'operatori'],
-            ['nome' => 'Turni oggi', 'valore' => (clone $turniVisibili)->where('inizio', '<', $oggi->copy()->addDay())->where('fine', '>=', $oggi)->count(), 'destinazione' => 'turni'],
+            ['nome' => 'Sedi', 'valore' => Sede::query()->whereIn('id_cliente', clone $idClientiVisibili)->count(), 'destinazione' => 'sedi'],
+            ['nome' => 'Operatori attivi', 'valore' => Admin::query()->where('user_type', 4)->where('attivo', 'Y')->count(), 'destinazione' => 'operatori'],
+            ['nome' => 'Turni oggi', 'valore' => (clone $turniVisibili)->whereDate('data_inizio', '<=', $oggi)->whereDate('data_fine', '>=', $oggi)->count(), 'destinazione' => 'turni'],
         ];
 
         $prossimiTurni = (clone $turniVisibili)
             ->with(['operatore', 'cliente', 'sede'])
-            ->where('inizio', '>=', now())
-            ->orderBy('inizio')
+            ->whereDate('data_inizio', '>=', $oggi)
+            ->orderBy('data_inizio')
+            ->orderBy('ora_inizio')
             ->limit(5)
             ->get();
 

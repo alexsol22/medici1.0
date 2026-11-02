@@ -12,7 +12,7 @@ use Livewire\Component;
 #[Layout('layouts::guest')]
 class Login extends Component
 {
-    #[Validate('required|email')]
+    #[Validate('required')]
     public string $email = '';
 
     #[Validate('required')]
@@ -31,7 +31,7 @@ class Login extends Component
             return;
         }
 
-        if (! Auth::attempt(['email' => $this->email, 'password' => $this->password, 'attivo' => true], $this->remember)) {
+        if (! Auth::attempt(['user' => $this->email, 'password' => $this->password], $this->remember)) {
             RateLimiter::hit($chiave);
             $this->addError('email', 'Credenziali non valide.');
 

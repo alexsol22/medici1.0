@@ -8,17 +8,17 @@
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <h3 class="text-lg font-bold text-slate-800">{{ $a->titolo }}</h3>
-                    <p class="text-xs text-slate-500">{{ $a->created_at->translatedFormat('d F Y, H:i') }}</p>
+                    <p class="text-xs text-slate-500">{{ $a->data_invio?->translatedFormat('d F Y') }}</p>
                 </div>
                 @if (auth()->user()->isOperatore())
-                    @if (! $a->letto_at)<span class="rounded-full bg-sky-500 px-2.5 py-1 text-xs font-semibold text-white">Nuovo</span>@endif
+                    @if (! $a->letto)<span class="rounded-full bg-sky-500 px-2.5 py-1 text-xs font-semibold text-white">Nuovo</span>@endif
                 @else
-                    <span class="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700">{{ $a->letti_count }}/{{ $a->destinatari_count }} letti</span>
+                    <span class="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700">{{ $a->letti_count }}/{{ $a->visualizzazioni_count }} letti</span>
                 @endif
             </div>
             <p class="mt-3 whitespace-pre-line text-sm text-slate-700">{{ $a->testo }}</p>
             <div class="mt-4 flex gap-2">
-                @if (auth()->user()->isOperatore() && ! $a->letto_at)<button wire:click="segnaLetto({{ $a->id }})" class="btn-soft !px-3 !py-1.5">Segna come letto</button>@endif
+                @if (auth()->user()->isOperatore() && ! $a->letto)<button wire:click="segnaLetto({{ $a->id }})" class="btn-soft !px-3 !py-1.5">Segna come letto</button>@endif
                 @if (auth()->user()->isStaff())<button wire:click="elimina({{ $a->id }})" wire:confirm="Eliminare l'avviso?" class="btn-danger !px-3 !py-1.5">Elimina</button>@endif
             </div>
         </article>

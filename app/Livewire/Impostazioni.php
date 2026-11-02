@@ -2,10 +2,9 @@
 
 namespace App\Livewire;
 
-use App\Models\Impostazione as ModelloImpostazione;
+use App\Models\Legacy\Config;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -14,126 +13,48 @@ use Livewire\Component;
 #[Title('Impostazioni')]
 class Impostazioni extends Component
 {
-    private const ETICHETTA_API_KEY = 'API key';
-
-    private const GRUPPI = [
-        'google_maps' => [
-            'nome' => 'Google Maps',
-            'descrizione' => 'Credenziali per mappe e servizi di geolocalizzazione.',
-            'campi' => [
-                ['chiave' => 'maps_api_key', 'etichetta' => self::ETICHETTA_API_KEY, 'tipo' => 'password', 'placeholder' => 'AIza…'],
-            ],
-        ],
-        'sms' => [
-            'nome' => 'SMS',
-            'descrizione' => 'Impostazioni del provider SMS utilizzato per gli invii.',
-            'campi' => [
-                ['chiave' => 'sms_provider', 'etichetta' => 'Provider', 'tipo' => 'text', 'placeholder' => 'Nome del servizio SMS'],
-                ['chiave' => 'sms_api_key', 'etichetta' => self::ETICHETTA_API_KEY, 'tipo' => 'password', 'placeholder' => 'Chiave API'],
-                ['chiave' => 'sms_sender_id', 'etichetta' => 'Mittente (Sender ID)', 'tipo' => 'text', 'placeholder' => 'Security'],
-                ['chiave' => 'sms_endpoint', 'etichetta' => 'Endpoint API', 'tipo' => 'url', 'placeholder' => 'https://api.example.com'],
-            ],
-        ],
-        'whatsapp' => [
-            'nome' => 'WhatsApp',
-            'descrizione' => 'Credenziali WhatsApp Business Platform.',
-            'campi' => [
-                ['chiave' => 'whatsapp_access_token', 'etichetta' => 'Access token', 'tipo' => 'password', 'placeholder' => 'Token di accesso'],
-                ['chiave' => 'whatsapp_phone_number_id', 'etichetta' => 'Phone number ID', 'tipo' => 'text', 'placeholder' => 'ID del numero WhatsApp'],
-                ['chiave' => 'whatsapp_business_account_id', 'etichetta' => 'Business account ID', 'tipo' => 'text', 'placeholder' => 'ID dell’account business'],
-            ],
-        ],
-        'telegram' => [
-            'nome' => 'Telegram',
-            'descrizione' => 'Bot Telegram e chat di destinazione.',
-            'campi' => [
-                ['chiave' => 'telegram_bot_token', 'etichetta' => 'Token del bot', 'tipo' => 'password', 'placeholder' => 'Token fornito da BotFather'],
-                ['chiave' => 'telegram_chat_id', 'etichetta' => 'Chat ID', 'tipo' => 'text', 'placeholder' => 'ID chat o canale'],
-            ],
-        ],
-        'openai' => [
-            'nome' => 'OpenAI',
-            'descrizione' => 'Chiave API e modello da usare per i servizi OpenAI.',
-            'campi' => [
-                ['chiave' => 'openai_api_key', 'etichetta' => self::ETICHETTA_API_KEY, 'tipo' => 'password', 'placeholder' => 'sk-…'],
-                ['chiave' => 'openai_model', 'etichetta' => 'Modello', 'tipo' => 'text', 'placeholder' => 'gpt-4o-mini'],
-            ],
-        ],
-        'altro' => [
-            'nome' => 'Altra integrazione',
-            'descrizione' => 'Aggiungi i dati di un servizio non elencato.',
-            'campi' => [
-                ['chiave' => 'custom_name', 'etichetta' => 'Nome servizio', 'tipo' => 'text', 'placeholder' => 'Nome dell’integrazione'],
-                ['chiave' => 'custom_api_key', 'etichetta' => self::ETICHETTA_API_KEY, 'tipo' => 'password', 'placeholder' => 'Chiave API'],
-                ['chiave' => 'custom_endpoint', 'etichetta' => 'Endpoint API', 'tipo' => 'url', 'placeholder' => 'https://api.example.com'],
-            ],
-        ],
+    private const CAMPI = [
+        'app', 'ragione_sociale', 'societa_iva', 'societa_indirizzo', 'societa_comune', 'societa_cap', 'societa_provincia',
+        'societa_email', 'societa_telefono', 'email', 'phone', 'colore', 'colore_primario',
     ];
 
     /** @var array<string, string> */
-    public array $dati = [];
+    public array $f = [];
 
     public function mount(): void
     {
         $this->autorizza();
+        $config = Config::firstOrNew();
 
-        foreach (self::GRUPPI as $gruppo) {
-            foreach ($gruppo['campi'] as $campo) {
-                $this->dati[$campo['chiave']] = '';
-            }
+        foreach (self::CAMPI as $campo) {
+            $this->f[$campo] = (string) $config->{$campo};
         }
-
-        $this->caricaValoriNonSegreti();
     }
 
-    public function salva(string $id): void
+    public function salva(): void
     {
         $this->autorizza();
-        $gruppo = $this->gruppo($id);
-        $rules = [];
+        $this->validate([
+            'f.app' => 'nullable|string|max:50',
+            'f.ragione_sociale' => 'nullable|string|max:255',
+            'f.societa_iva' => 'nullable|string|max:12',
+            'f.societa_indirizzo' => 'nullable|string|max:255',
+            'f.societa_comune' => 'nullable|string|max:255',
+            'f.societa_cap' => 'nullable|string|max:255',
+            'f.societa_provincia' => 'nullable|string|max:255',
+            'f.societa_email' => 'nullable|email|max:255',
+            'f.societa_telefono' => 'nullable|string|max:255',
+            'f.email' => 'nullable|email|max:30',
+            'f.phone' => 'nullable|string|max:30',
+            'f.colore' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'f.colore_primario' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+        ]);
 
-        foreach ($gruppo['campi'] as $campo) {
-            $rules['dati.'.$campo['chiave']] = $campo['tipo'] === 'url'
-                ? ['nullable', 'url', 'max:2048']
-                : ['nullable', 'string', 'max:5000'];
-        }
+        $config = Config::firstOrNew();
+        $config->fill(array_map(fn ($v) => (string) $v, $this->f));
+        $config->save();
 
-        $validati = $this->validate($rules)['dati'] ?? [];
-
-        DB::transaction(function () use ($gruppo, $validati): void {
-            foreach ($gruppo['campi'] as $campo) {
-                $valore = trim($validati[$campo['chiave']] ?? '');
-
-                if ($valore !== '') {
-                    ModelloImpostazione::updateOrCreate(
-                        ['chiave' => $campo['chiave']],
-                        ['valore' => $valore],
-                    );
-                }
-            }
-        });
-
-        foreach ($gruppo['campi'] as $campo) {
-            $this->dati[$campo['chiave']] = '';
-        }
-        $this->caricaValoriNonSegreti();
-
-        session()->flash('impostazioni', 'Configurazione '.$gruppo['nome'].' salvata.');
-    }
-
-    public function rimuovi(string $id): void
-    {
-        $this->autorizza();
-        $gruppo = $this->gruppo($id);
-        $chiavi = array_column($gruppo['campi'], 'chiave');
-
-        ModelloImpostazione::query()->whereIn('chiave', $chiavi)->delete();
-
-        foreach ($gruppo['campi'] as $campo) {
-            $this->dati[$campo['chiave']] = '';
-        }
-
-        session()->flash('impostazioni', 'Configurazione '.$gruppo['nome'].' rimossa.');
+        session()->flash('impostazioni', 'Impostazioni salvate.');
     }
 
     private function autorizza(): void
@@ -143,46 +64,8 @@ class Impostazioni extends Component
         abort_unless($user instanceof User && $user->isStaff(), 403);
     }
 
-    private function caricaValoriNonSegreti(): void
-    {
-        $campi = collect(self::GRUPPI)
-            ->flatMap(fn (array $gruppo): array => $gruppo['campi'])
-            ->reject(fn (array $campo): bool => $campo['tipo'] === 'password');
-        $valori = ModelloImpostazione::query()
-            ->whereIn('chiave', $campi->pluck('chiave'))
-            ->get()
-            ->keyBy('chiave');
-
-        foreach ($campi as $campo) {
-            $this->dati[$campo['chiave']] = $valori->get($campo['chiave'])?->valore ?? '';
-        }
-    }
-
-    /**
-     * @return array{nome: string, descrizione: string, campi: list<array{chiave: string, etichetta: string, tipo: string, placeholder: string}>}
-     */
-    private function gruppo(string $id): array
-    {
-        abort_unless(isset(self::GRUPPI[$id]), 404);
-
-        return self::GRUPPI[$id];
-    }
-
     public function render()
     {
-        $chiaviSalvate = ModelloImpostazione::query()
-            ->whereIn('chiave', collect(self::GRUPPI)->flatMap(fn (array $gruppo): array => array_column($gruppo['campi'], 'chiave')))
-            ->pluck('chiave')
-            ->all();
-
-        $gruppi = collect(self::GRUPPI)
-            ->map(fn (array $gruppo): array => $gruppo + [
-                'configurata' => collect(array_column($gruppo['campi'], 'chiave'))
-                    ->intersect($chiaviSalvate)
-                    ->isNotEmpty(),
-            ])
-            ->all();
-
-        return view('livewire.impostazioni', ['gruppi' => $gruppi]);
+        return view('livewire.impostazioni');
     }
 }

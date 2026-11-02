@@ -40,11 +40,11 @@
                 @forelse ($righe as $p)
                     <tr wire:key="pr{{ $p->id }}">
                         <td class="td whitespace-nowrap">{{ $p->rilevata_at->format('d/m/Y H:i') }}</td>
-                        <td class="td">{{ $p->operatore->nome_completo }}</td>
-                        <td class="td">{{ $p->sede->descrizione }}</td>
+                        <td class="td">{{ $p->operatore?->nome_completo }}</td>
+                        <td class="td">{{ $p->sede?->descrizione }}</td>
                         <td class="td">{{ ['I' => 'Inizio', 'F' => 'Fine', 'P' => 'Passaggio'][$p->tipo] }}{{ $p->postazione ? ' · '.$p->postazione->titolo : '' }}</td>
                         <td class="td">@if ($p->ritardo_minuti !== null)<span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ $p->ritardo_minuti > 5 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700' }}">{{ $p->ritardo_minuti > 0 ? '+' : '' }}{{ $p->ritardo_minuti }} min</span>@endif</td>
-                        <td class="td">{{ $p->distanza_km !== null ? round($p->distanza_km * 1000).' m' : '—' }}</td>
+                        <td class="td">{{ $p->distanza !== null ? round($p->distanza * 1000).' m' : '—' }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="6" class="td py-10 text-center text-slate-500">Nessuna timbratura nel periodo.</td></tr>

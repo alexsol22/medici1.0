@@ -37,7 +37,7 @@
                 <input type="file" wire:model="logo" accept="image/png,image/jpeg,image/webp" class="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-sky-100 file:px-3 file:py-2 file:font-semibold file:text-sky-700">
             </x-ui.field>
         </div>
-        @if ($logo || $logoEsistente)
+        @if ($logo)
             <button type="button" wire:click="rimuoviLogo" class="btn-danger !py-1.5">Rimuovi logo</button>
         @endif
         @unless ($bloccato)
@@ -50,12 +50,6 @@
             <p class="mt-3 text-xs text-slate-500">{{ $sedeId ? 'Il QR contiene il codice di timbratura della sede.' : 'Senza sede il QR contiene il testo del titolo.' }}</p>
         </div>
         @endunless
-        <div class="flex flex-wrap gap-2">
-            <button type="button" wire:click="salva" class="btn-primary">{{ $qrId ? 'Aggiorna QR' : 'Salva QR' }}</button>
-            @if ($qrId)<button type="button" wire:click="nuovo" class="btn-soft">Nuovo QR</button>@endif
-        </div>
-        @error('contenuto')<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700">{{ $message }}</p>@enderror
-        @if ($messaggio)<p class="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">✅ {{ $messaggio }}</p>@endif
         <p class="text-xs text-slate-500">Il logo è al centro: il QR usa la massima correzione degli errori, ma verifica sempre la lettura con il telefono prima di stampare.</p>
     </div>
 
@@ -66,26 +60,4 @@
             <button type="button" @click="scarica('svg')" class="btn-soft">Scarica SVG</button>
         </div>
     </div>
-</div>
-
-    @unless ($bloccato)
-    <section>
-        <h2 class="mb-3 text-lg font-bold text-slate-800">QR salvati</h2>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            @forelse ($salvati as $r)
-                <div wire:key="qr{{ $r['m']->id }}" class="card flex flex-col p-4 {{ $qrId === $r['m']->id ? 'ring-2 ring-sky-400' : '' }}">
-                    <div class="mx-auto w-40 overflow-hidden rounded-xl ring-1 ring-sky-100 [&_svg]:h-auto [&_svg]:w-full">{!! $r['svg'] !!}</div>
-                    <p class="mt-3 truncate font-semibold text-slate-800">{{ $r['m']->titolo ?: 'Senza titolo' }}</p>
-                    <p class="truncate text-xs text-slate-500">{{ collect([$r['m']->cliente?->ragione_sociale, $r['m']->sede?->descrizione])->filter()->implode(' › ') ?: 'Non associato' }}</p>
-                    <div class="mt-3 flex gap-2">
-                        <button wire:click="apri({{ $r['m']->id }})" class="btn-soft !px-3 !py-1.5">Apri / scarica</button>
-                        <button wire:click="elimina({{ $r['m']->id }})" wire:confirm="Eliminare il QR salvato?" class="btn-danger !px-3 !py-1.5">Elimina</button>
-                    </div>
-                </div>
-            @empty
-                <p class="card col-span-full p-8 text-center text-sm text-slate-500">Nessun QR salvato.</p>
-            @endforelse
-        </div>
-    </section>
-    @endunless
 </div>
