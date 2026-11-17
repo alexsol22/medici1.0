@@ -62,35 +62,44 @@
           </div>
         </x-ui.filtri>
 
-        <div class="space-y-4">
+        <div class="space-y-3">
             @forelse ($sedi as $s)
                 <article wire:key="s{{ $s->id }}" class="card overflow-hidden">
-                    <div class="grid md:grid-cols-[12rem_minmax(0,1fr)]">
-                        <div x-data="{ fotoDisponibile: @js((bool) $s->foto) }" class="relative flex min-h-48 items-center justify-center bg-sky-50 text-sky-500 md:min-h-full">
+                    <div class="grid md:grid-cols-[18rem_minmax(0,1fr)]">
+                        <div x-data="{ fotoDisponibile: @js((bool) $s->foto), ingrandita: false }" class="relative flex min-h-56 items-center justify-center bg-sky-50 text-sky-500">
                             @if ($s->foto)
-                                <img x-show="fotoDisponibile" x-on:error="fotoDisponibile = false" src="{{ route('sedi.foto', $s->id) }}" alt="Foto di {{ $s->descrizione }}" class="absolute inset-0 h-full w-full object-cover">
+                                <button type="button" x-show="fotoDisponibile" x-on:click="ingrandita = true" class="group relative block h-56 w-full cursor-zoom-in" aria-label="Ingrandisci foto di {{ $s->descrizione }}">
+                                    <img x-on:error="fotoDisponibile = false" src="{{ route('sedi.foto', $s->id) }}" alt="Foto di {{ $s->descrizione }}" class="h-full w-full object-contain">
+                                    <span class="pointer-events-none absolute bottom-3 right-3 rounded-lg bg-slate-900/70 px-2.5 py-1 text-xs font-semibold text-white opacity-100 transition group-hover:bg-slate-900/85 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100">Ingrandisci</span>
+                                </button>
+                                <template x-teleport="body">
+                                    <div x-show="ingrandita" x-cloak x-transition.opacity class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Foto di {{ $s->descrizione }}" @keydown.escape.window="ingrandita = false" @click.self="ingrandita = false">
+                                        <button type="button" class="absolute right-4 top-4 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/20" @click="ingrandita = false">Chiudi</button>
+                                        <img src="{{ route('sedi.foto', $s->id) }}" alt="Foto di {{ $s->descrizione }}" class="max-h-[90vh] max-w-full rounded-xl object-contain shadow-2xl">
+                                    </div>
+                                </template>
                             @endif
                             <svg x-cloak x-show="!fotoDisponibile" xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4M9 10h.01M12 10h.01M15 10h.01M9 13h.01M12 13h.01M15 13h.01"/>
                             </svg>
                         </div>
-                        <div class="flex min-w-0 flex-col p-5 sm:p-6">
-                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div class="flex min-w-0 flex-col p-4 sm:p-5">
+                            <div class="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between">
                                 <div class="min-w-0">
-                                    <h3 class="truncate text-xl font-bold text-slate-800">{{ $s->descrizione }}</h3>
-                                    <p class="mt-1 text-sm text-slate-600">{{ trim($s->indirizzo.' '.$s->cap.' '.$s->citta.' '.$s->provincia_sigla) ?: 'Indirizzo non disponibile' }}</p>
+                                    <h3 class="truncate text-lg font-bold text-slate-800">{{ $s->descrizione }}</h3>
+                                    <p class="mt-0.5 text-sm text-slate-600">{{ trim($s->indirizzo.' '.$s->cap.' '.$s->citta.' '.$s->provincia_sigla) ?: 'Indirizzo non disponibile' }}</p>
                                 </div>
                                 @if ($s->codice)
                                     <span class="shrink-0 rounded-lg bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-500">{{ $s->codice->codice }}</span>
                                 @endif
                             </div>
 
-                            <div class="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                            <div class="mt-2 grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
                                 @if ($s->email)<p class="truncate"><span class="font-medium text-slate-700">Email:</span> {{ $s->email }}</p>@endif
                                 @if ($s->telefono)<p><span class="font-medium text-slate-700">Telefono:</span> {{ $s->telefono }}</p>@endif
                             </div>
 
-                            <div class="mt-5 flex flex-wrap gap-2 border-t border-sky-50 pt-4">
+                            <div class="mt-3 flex flex-wrap gap-2 border-t border-sky-50 pt-3">
                                 @if ($s->turni_count > 0)
                                     <a href="{{ route('turni', ['sede' => $s->id]) }}" wire:navigate class="btn-soft !px-3 !py-1.5">Visualizza agenda pos</a>
                                 @endif

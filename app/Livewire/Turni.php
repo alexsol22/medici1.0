@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Livewire\Concerns\ConAccesso;
 use App\Models\Legacy\Admin;
 use App\Models\Legacy\Gda;
+use App\Models\Legacy\Ritardo;
 use App\Models\Legacy\Turno;
 use App\Services\Calcoli;
 use App\Services\Comunicazioni;
@@ -458,6 +459,7 @@ class Turni extends Component
         }
 
         Gda::whereIn('id_turno', $ids)->delete();
+        Ritardo::whereIn('id_turno', $ids)->delete();
         Turno::whereIn('id', $ids)->delete();
     }
 

@@ -31,7 +31,53 @@
                     </select>
                 </label>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex w-full items-center gap-2 sm:w-auto">
+                <div
+                    class="relative w-full min-w-48 flex-1 sm:w-96 sm:flex-none"
+                    wire:ignore
+                    x-data="{
+                        q: @js($filtroRagioneSociale),
+                        risultati: [],
+                        aperti: false,
+                        timer: null,
+                        scrivi() {
+                            clearTimeout(this.timer);
+                            const termine = this.q.trim();
+                            this.timer = setTimeout(async () => {
+                                await $wire.$set('filtroCliente', null, false);
+                                await $wire.$set('filtroRagioneSociale', termine);
+                                if (termine === '') {
+                                    this.risultati = [];
+                                    this.aperti = false;
+                                    return;
+                                }
+                                const risposta = await fetch(@js(route('clienti.suggerimenti')) + '?q=' + encodeURIComponent(termine), {
+                                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                });
+                                const dati = risposta.ok ? await risposta.json() : { results: [] };
+                                if (this.q.trim() !== termine) return;
+                                this.risultati = dati.results ?? [];
+                                this.aperti = true;
+                            }, 200);
+                        },
+                        async scegli(voce) {
+                            this.q = voce.text;
+                            this.aperti = false;
+                            await $wire.$set('filtroRagioneSociale', '', false);
+                            await $wire.$set('filtroCliente', Number(voce.id));
+                        },
+                    }"
+                    @click.outside="aperti = false"
+                >
+                    <label for="cerca-ragione-sociale" class="sr-only">Cerca ragione sociale</label>
+                    <input id="cerca-ragione-sociale" type="search" x-model="q" @input="scrivi()" @focus="aperti = risultati.length > 0" placeholder="Cerca ragione sociale" autocomplete="off" role="combobox" :aria-expanded="aperti" class="input">
+                    <ul x-cloak x-show="aperti" class="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-xl bg-white py-1 shadow-lg ring-1 ring-sky-100">
+                        <template x-for="voce in risultati" :key="voce.id">
+                            <li><button type="button" class="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-sky-50" @click="scegli(voce)" x-text="voce.text"></button></li>
+                        </template>
+                        <li x-show="risultati.length === 0" class="px-3 py-2 text-sm text-slate-500">Nessun cliente trovato</li>
+                    </ul>
+                </div>
                 <x-ui.filtri title="Ricerca cliente" trigger-label="Ricerca cliente" :values="['filtroRagioneSociale' => $filtroRagioneSociale, 'filtroPiva' => $filtroPiva, 'filtroCodiceFiscale' => $filtroCodiceFiscale, 'filtroEmail' => $filtroEmail, 'filtroTelefono' => $filtroTelefono]">
                     <x-slot:trigger>
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m20 20-4-4"/></svg>

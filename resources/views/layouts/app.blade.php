@@ -46,11 +46,11 @@
             ['presenze.operatori', 'Orari operatori', 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1m0 0h6v-1a6 6 0 00-9-5.197', ['super_admin', 'admin'], []],
         ],
         'impostazioni-menu' => [
-            ['messaggi', 'Messaggi', 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A2 2 0 0120 9v10a2 2 0 01-2 2H7a2 2 0 01-2-2z', ['super_admin', 'admin'], []],
-            ['messaggi.canale', 'Email inviate', 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', ['super_admin', 'admin'], ['canale' => 'email']],
-            ['amministratori', 'Utenti', 'M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2m16 0v-2a4 4 0 00-3-3.87M12 7a4 4 0 11-8 0 4 4 0 018 0zm8 4a4 4 0 00-3-3.87', ['super_admin', 'admin'], []],
-            ['messaggi.canale', 'WhatsApp inviati', 'M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z', ['super_admin', 'admin'], ['canale' => 'whatsapp']],
-            ['generatore-qr', 'Generatore QR', 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM19 14h2v7h-7v-2', ['super_admin', 'admin'], []],
+            ['messaggi', 'Messaggi', 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A2 2 0 0120 9v10a2 2 0 01-2 2H7a2 2 0 01-2-2z', ['super_admin', 'admin'], [], 'Messaggi'],
+            ['messaggi.canale', 'Email inviate', 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', ['super_admin', 'admin'], ['canale' => 'email'], 'Messaggi'],
+            ['messaggi.canale', 'WhatsApp inviati', 'M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z', ['super_admin', 'admin'], ['canale' => 'whatsapp'], 'Messaggi'],
+            ['amministratori', 'Utenti', 'M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2m16 0v-2a4 4 0 00-3-3.87M12 7a4 4 0 11-8 0 4 4 0 018 0zm8 4a4 4 0 00-3-3.87', ['super_admin', 'admin'], [], 'Utenti'],
+            ['generatore-qr', 'Generatore QR', 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM19 14h2v7h-7v-2', ['super_admin', 'admin'], [], 'Strumenti'],
         ],
     ];
     $vociDisabilitate = [];
@@ -129,10 +129,19 @@
                                         {{ $label }}
                                         <svg class="ml-auto h-4 w-4 transition-transform" :class="aperto ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
                                     </button>
-                                    <ul x-cloak x-show="aperto" x-transition class="ml-5 mt-1 space-y-1 border-l border-sky-100 pl-2 lg:absolute lg:left-0 lg:top-full lg:z-50 lg:ml-0 lg:w-56 lg:rounded-2xl lg:border-0 lg:bg-white lg:p-2 lg:shadow-xl lg:ring-1 lg:ring-sky-100">
-                                        @foreach ($sottomenu[$route] as [$sottoRoute, $sottoLabel, $sottoIcon, $sottoRuoli, $parametri])
+                                    <ul x-cloak x-show="aperto" x-transition class="ml-5 mt-1 space-y-1 border-l border-sky-100 pl-2 lg:absolute lg:left-0 lg:top-full lg:z-50 lg:ml-0 lg:w-80 lg:rounded-2xl lg:border-0 lg:bg-white lg:p-2 lg:shadow-xl lg:ring-1 lg:ring-sky-100">
+                                        @php $sezionePrecedente = null; @endphp
+                                        @foreach ($sottomenu[$route] as $voceSottomenu)
+                                            @php
+                                                [$sottoRoute, $sottoLabel, $sottoIcon, $sottoRuoli, $parametri] = $voceSottomenu;
+                                                $sezione = $voceSottomenu[5] ?? null;
+                                            @endphp
                                             @if (! in_array($ruolo, $sottoRuoli, true))
                                                 @continue
+                                            @endif
+                                            @if ($sezione && $sezione !== $sezionePrecedente)
+                                                <li role="presentation" @class(['px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400', 'mt-2 border-t border-sky-100 pt-2' => $sezionePrecedente, 'pt-1' => ! $sezionePrecedente])>{{ $sezione }}</li>
+                                                @php $sezionePrecedente = $sezione; @endphp
                                             @endif
                                             @if (in_array($sottoRoute, $vociDisabilitate, true))
                                                 <li>
@@ -186,7 +195,7 @@
                 @if (isset($title) && ! $paginaPresenze && ! request()->routeIs('turni', 'miei-turni'))
                     <h1 @class([
                         'mb-6 text-2xl font-bold tracking-tight text-slate-800',
-                        'mx-auto w-full max-w-5xl' => $titoloPagina === 'Impostazioni',
+                        'mx-auto w-full max-w-4xl' => $titoloPagina === 'Impostazioni',
                         'mx-auto w-full max-w-6xl' => $titoloPagina === 'Generatore QR',
                     ])>{{ $titoloPagina }}</h1>
                 @endif

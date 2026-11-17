@@ -39,6 +39,8 @@ class Clienti extends Component
 
     public string $filtroRagioneSociale = '';
 
+    public ?int $filtroCliente = null;
+
     public string $filtroPiva = '';
 
     public string $filtroCodiceFiscale = '';
@@ -115,7 +117,7 @@ class Clienti extends Component
 
     public function updating(string $name): void
     {
-        if (in_array($name, ['filtroRagioneSociale', 'filtroPiva', 'filtroCodiceFiscale', 'filtroEmail', 'filtroTelefono', 'perPagina'], true)) {
+        if (in_array($name, ['filtroRagioneSociale', 'filtroCliente', 'filtroPiva', 'filtroCodiceFiscale', 'filtroEmail', 'filtroTelefono', 'perPagina'], true)) {
             $this->resetPage();
         }
     }
@@ -391,6 +393,7 @@ class Clienti extends Component
     {
         $elenco = $this->clientiVisibili()->with(['comune', 'provincia'])->withCount(['operatoriPreferiti', 'operatoriEsclusi'])
             ->when($this->cerca, fn ($q) => $q->where(fn ($w) => $w->where('ragione_sociale', 'like', "%{$this->cerca}%")->orWhereHas('comune', fn ($c) => $c->where('comune', 'like', "%{$this->cerca}%"))))
+            ->when($this->filtroCliente, fn ($q) => $q->whereKey($this->filtroCliente))
             ->when($this->filtroRagioneSociale !== '', fn ($q) => $q->where('ragione_sociale', 'like', "%{$this->filtroRagioneSociale}%"))
             ->when($this->filtroPiva !== '', fn ($q) => $q->where('piva', 'like', "%{$this->filtroPiva}%"))
             ->when($this->filtroCodiceFiscale !== '', fn ($q) => $q->where('codice_fiscale', 'like', "%{$this->filtroCodiceFiscale}%"))

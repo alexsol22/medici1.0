@@ -190,6 +190,40 @@ class NotificheSmsTest extends TestCase
         ]);
     }
 
+    private function preparaWhatsapp(): void
+    {
+        config([
+            'whatsapp.enabled' => true,
+            'whatsapp.cron' => true,
+            'whatsapp.token' => 'token-prova',
+            'whatsapp.phone_number_id' => '123456789',
+            'whatsapp.graph_url' => 'https://graph.facebook.com',
+            'whatsapp.api_version' => 'v22.0',
+            'whatsapp.template_cron' => 'avviso_operatore',
+            'whatsapp.lingua_cron' => 'it',
+            'whatsapp.parametro_cron' => 'avviso',
+        ]);
+        Http::preventStrayRequests();
+        Http::fake([
+            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.CRON']]]),
+        ]);
+        Schema::create('tc_send_whatsapp', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->string('destinatario', 20);
+            $table->string('tipo', 20);
+            $table->string('template', 100)->nullable();
+            $table->string('lingua', 12)->nullable();
+            $table->text('testo')->nullable();
+            $table->text('parametri')->nullable();
+            $table->string('wamid', 191)->nullable()->unique();
+            $table->string('stato', 20);
+            $table->text('errore')->nullable();
+            $table->unsignedInteger('id_operatore')->default(0);
+            $table->dateTime('data_invio');
+            $table->dateTime('aggiornato_il')->nullable();
+        });
+    }
+
     private function fingiProvider(): void
     {
         Http::fake([
@@ -276,6 +310,90 @@ class NotificheSmsTest extends TestCase
         $this->assertSame(['+39333', '+39111', '+39222'], DB::table('tc_send_sms')->orderBy('id')->pluck('destinatari')->all());
         $this->assertSame('Turno 11:00 Sede Nord', DB::table('tc_send_sms')->value('testo'));
         Mail::assertNothingSent();
+    }
+
+    public function test_avviso_turno_invia_whatsapp_solo_al_cellulare_dell_operatore(): void
+    {
+        $this->preparaWhatsapp();
+        DB::table('tc_turni')->update(['ora_inizio' => '11:00']);
+        $this->messaggio([
+            'id' => 1,
+            'ore' => 2,
+            'invia_sms' => 'N',
+            'invia_email' => 'N',
+            'minuti' => null,
+            'admin_sms' => '+39111,+39222',
+            'modello_sms' => 'Turno [ORA TURNO] presso [SEDE]',
+        ]);
+
+        $this->artisan('notifiche:avviso-turni')->assertSuccessful();
+
+        $this->assertSame(['39333'], DB::table('tc_send_whatsapp')->pluck('destinatario')->all());
+        $this->assertSame('avviso_operatore', DB::table('tc_send_whatsapp')->value('template'));
+        $this->assertSame('Turno 11:00 presso Sede Nord', DB::table('tc_send_whatsapp')->value('testo'));
+        $this->assertSame(1, (int) DB::table('tc_send_whatsapp')->value('id_operatore'));
+        Http::assertSent(fn ($richiesta) => $richiesta['to'] === '39333'
+            && $richiesta['type'] === 'template'
+            && $richiesta['template']['name'] === 'avviso_operatore'
+            && $richiesta['template']['language']['code'] === 'it'
+            && $richiesta['template']['components'][0]['parameters'][0]['parameter_name'] === 'avviso'
+            && $richiesta['template']['components'][0]['parameters'][0]['text'] === 'Turno 11:00 presso Sede Nord'
+            && ! isset($richiesta['category']));
+        Http::assertSentCount(1);
+    }
+
+    public function test_ritardo_invia_whatsapp_al_cellulare_dell_operatore(): void
+    {
+        $this->preparaWhatsapp();
+        $this->messaggio(['id' => 2, 'invia_sms' => 'N', 'invia_email' => 'N', 'modello_sms' => 'Ritardo [OPERATORE]']);
+
+        $this->artisan('notifiche:ritardi')->assertSuccessful();
+
+        $this->assertSame(['39333'], DB::table('tc_send_whatsapp')->pluck('destinatario')->all());
+        $this->assertSame('Ritardo Rossi Mario', DB::table('tc_send_whatsapp')->value('testo'));
+        Http::assertSent(fn ($richiesta) => $richiesta['template']['name'] === 'avviso_operatore'
+            && $richiesta['template']['components'][0]['parameters'][0]['parameter_name'] === 'avviso'
+            && $richiesta['template']['components'][0]['parameters'][0]['text'] === 'Ritardo Rossi Mario');
+        Http::assertSentCount(1);
+    }
+
+    public function test_senza_template_il_cron_non_chiama_whatsapp(): void
+    {
+        $this->preparaWhatsapp();
+        config(['whatsapp.template_cron' => '']);
+        DB::table('tc_turni')->update(['ora_inizio' => '11:00']);
+        $this->messaggio(['id' => 1, 'ore' => 2, 'invia_sms' => 'N', 'invia_email' => 'N', 'modello_sms' => 'Turno [SEDE]']);
+
+        $this->artisan('notifiche:avviso-turni')->assertSuccessful();
+
+        Http::assertNothingSent();
+        $this->assertSame(0, DB::table('tc_send_whatsapp')->count());
+    }
+
+    public function test_prova_sicura_non_invia_whatsapp(): void
+    {
+        $this->preparaWhatsapp();
+        DB::table('tc_admin')->where('id', 1)->update(['email' => ProvaNotifiche::EMAIL]);
+        DB::table('tc_turni')->update(['ora_inizio' => '11:00']);
+        $this->messaggio(['id' => 1, 'ore' => 2, 'invia_sms' => 'N', 'modello_sms' => 'Turno [SEDE]']);
+
+        $this->artisan('notifiche:avviso-turni', ['--prova-sicura' => true])->assertSuccessful();
+
+        Http::assertNothingSent();
+        $this->assertSame(0, DB::table('tc_send_whatsapp')->count());
+    }
+
+    public function test_con_whatsapp_acceso_il_cron_non_invia_finche_non_e_abilitato(): void
+    {
+        $this->preparaWhatsapp();
+        config(['whatsapp.cron' => false]);
+        DB::table('tc_turni')->update(['ora_inizio' => '11:00']);
+        $this->messaggio(['id' => 1, 'ore' => 2, 'invia_sms' => 'N', 'invia_email' => 'N', 'modello_sms' => 'Turno [SEDE]']);
+
+        $this->artisan('notifiche:avviso-turni')->assertSuccessful();
+
+        Http::assertNothingSent();
+        $this->assertSame(0, DB::table('tc_send_whatsapp')->count());
     }
 
     public function test_prova_avvisi_invia_solo_i_turni_dell_operatore_senza_sms_o_registrazioni(): void
@@ -573,6 +691,9 @@ class NotificheSmsTest extends TestCase
             'sms_inviati' => 0,
             'sms_falliti' => 0,
             'motivo_sms' => 'invio SMS disattivato',
+            'whatsapp_inviati' => 0,
+            'whatsapp_falliti' => 0,
+            'motivo_whatsapp' => 'invio WhatsApp disattivato',
             'email_inviate' => 2,
             'email' => 'mario@example.com',
             'motivo_email' => null,
@@ -622,6 +743,9 @@ class NotificheSmsTest extends TestCase
             'sms_inviati' => 3,
             'sms_falliti' => 0,
             'motivo_sms' => null,
+            'whatsapp_inviati' => 0,
+            'whatsapp_falliti' => 0,
+            'motivo_whatsapp' => 'invio WhatsApp disattivato',
             'email_inviate' => 1,
             'email' => 'mario@example.com',
             'motivo_email' => null,

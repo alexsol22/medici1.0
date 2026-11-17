@@ -165,10 +165,13 @@ class SediSuiteTest extends TestCase
             'cap' => '41037',
             'citta_id' => 1,
             'provincia_id' => 1,
+            'foto' => 'foto.jpg',
         ]);
         DB::table('tc_turni')->insert([['id_sede' => $s['sede'], 'stato' => 'F'], ['id_sede' => $s['sede'], 'stato' => 'A'], ['id_sede' => $s['sede'], 'stato' => 'F']]);
 
         Livewire::actingAs($this->admin())->test(Sedi::class)->set('filtroCliente', $c)
+            ->assertSee('Ingrandisci foto di Sede Uno', false)
+            ->assertSee('aria-label="Foto di Sede Uno"', false)
             ->assertSee('Visualizza agenda pos')
             ->assertSee('href="'.route('turni', ['sede' => $s['sede']]).'"', false)
             ->assertSee('Visualizza GDA')

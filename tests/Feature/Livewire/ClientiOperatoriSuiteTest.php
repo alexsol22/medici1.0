@@ -142,6 +142,42 @@ class ClientiOperatoriSuiteTest extends TestCase
             ->assertDontSee('Beta Spa');
     }
 
+    public function test_clienti_ragione_sociale_suggestions_filter_the_visible_list(): void
+    {
+        $alpha = $this->cliente('Alpha Servizi');
+        $this->cliente('Beta Spa');
+        $this->cliente('Alpha Test', 1);
+
+        $this->get(route('clienti.suggerimenti', ['q' => 'Alp']))->assertRedirect(route('login'));
+        $this->actingAs($this->utente(4, 910))->get(route('clienti.suggerimenti', ['q' => 'Alp']))->assertForbidden();
+
+        $this->actingAs($this->admin())->getJson(route('clienti.suggerimenti', ['q' => 'Alp']))
+            ->assertOk()
+            ->assertJsonCount(1, 'results')
+            ->assertJsonPath('results.0.id', $alpha)
+            ->assertJsonPath('results.0.text', 'Alpha Servizi');
+
+        $this->actingAs($this->super())->getJson(route('clienti.suggerimenti', ['q' => 'Alpha']))
+            ->assertOk()
+            ->assertJsonCount(1, 'results')
+            ->assertJsonPath('results.0.text', 'Alpha Test');
+
+        $this->actingAs($this->admin())->getJson(route('clienti.suggerimenti'))
+            ->assertOk()
+            ->assertJsonCount(0, 'results');
+
+        Livewire::actingAs($this->admin())->test(Clienti::class)
+            ->assertSee('id="cerca-ragione-sociale"', false)
+            ->assertSee('type="search"', false)
+            ->assertSee('placeholder="Cerca ragione sociale"', false)
+            ->assertDontSee('select2-clienti', false)
+            ->assertSee('clienti\\/suggerimenti', false)
+            ->set('filtroCliente', $alpha)
+            ->assertSee('Alpha Servizi')
+            ->assertDontSee('Beta Spa')
+            ->assertDontSee('Alpha Test');
+    }
+
     public function test_clienti_filters_return_to_first_page(): void
     {
         foreach (range(1, 12) as $n) {

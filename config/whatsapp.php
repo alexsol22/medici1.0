@@ -15,6 +15,9 @@ return [
     */
     'enabled' => (bool) env('WHATSAPP_ENABLED', false),
 
+    /* I cron non scrivono agli operatori finché WHATSAPP_CRON non è true. */
+    'cron' => (bool) env('WHATSAPP_CRON', false),
+
     'graph_url' => env('WHATSAPP_GRAPH_URL', 'https://graph.facebook.com'),
 
     'api_version' => env('WHATSAPP_API_VERSION', 'v22.0'),
@@ -30,6 +33,13 @@ return [
     'template_prova' => env('WHATSAPP_TEST_TEMPLATE', 'hello_world'),
 
     'lingua_prova' => env('WHATSAPP_TEST_TEMPLATE_LANGUAGE', 'en_US'),
+
+    /* I cron mettono il testo del turno nella variabile {{avviso}} di questo template. */
+    'template_cron' => env('WHATSAPP_CRON_TEMPLATE', 'avviso_operatore'),
+
+    'lingua_cron' => env('WHATSAPP_CRON_TEMPLATE_LANGUAGE', 'it'),
+
+    'parametro_cron' => env('WHATSAPP_CRON_TEMPLATE_PARAMETER', 'avviso'),
 
     'destinatario_prova' => env('WHATSAPP_TEST_TO'),
 

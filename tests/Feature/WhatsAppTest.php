@@ -99,7 +99,7 @@ class WhatsAppTest extends TestCase
             'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.PROVA']]]),
         ]);
 
-        $this->artisan('whatsapp:prova', ['numero' => '+39 333 111 2233'])
+        $this->artisan('whatsapp:prova', ['numeri' => '+39 333 111 2233'])
             ->expectsOutputToContain('WhatsApp inviato a 393331112233. Id Meta: wamid.PROVA')
             ->assertSuccessful();
 
@@ -116,6 +116,26 @@ class WhatsAppTest extends TestCase
             && $richiesta['template']['name'] === 'hello_world'
             && $richiesta['template']['language']['code'] === 'en_US'
             && ! isset($richiesta['template']['components']));
+    }
+
+    public function test_prova_invia_il_template_a_ogni_numero_della_lista(): void
+    {
+        $this->preparaInvio();
+        config(['whatsapp.destinatario_prova' => '+39 333 1112233, 393339998877;00393334445566']);
+        Http::fake([
+            'graph.facebook.com/*' => Http::sequence()
+                ->push(['messages' => [['id' => 'wamid.1']]])
+                ->push(['messages' => [['id' => 'wamid.2']]])
+                ->push(['messages' => [['id' => 'wamid.3']]]),
+        ]);
+
+        $this->artisan('whatsapp:prova')->assertSuccessful();
+
+        $this->assertSame(
+            ['393331112233', '393339998877', '393334445566'],
+            DB::table('tc_send_whatsapp')->orderBy('id')->pluck('destinatario')->all(),
+        );
+        $this->assertSame(3, DB::table('tc_send_whatsapp')->where('stato', 'inviato')->count());
     }
 
     public function test_prova_con_parametri_li_mette_nel_body_del_template(): void

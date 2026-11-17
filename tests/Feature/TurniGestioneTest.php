@@ -152,13 +152,24 @@ class TurniGestioneTest extends TestCase
         return $componente->viewData('turni')->pluck('id')->sort()->values()->all();
     }
 
-    public function test_eliminare_un_turno_cancella_i_gda_collegati_e_lascia_gli_altri(): void
+    public function test_eliminare_un_turno_cancella_gda_e_ritardi_collegati_e_lascia_gli_altri(): void
     {
+        Schema::create('tc_ritardi', function (Blueprint $table): void {
+            $table->integer('id');
+            $table->unsignedInteger('id_turno')->nullable();
+            $table->unsignedInteger('id_operatore')->nullable();
+            $table->integer('inizio')->default(0);
+            $table->integer('fine')->default(0);
+        });
         DB::table('tc_gda')->insert([
             ['id_turno' => 2, 'id_operatore' => 2, 'id_cliente' => 1, 'id_sede' => 1, 'tipo' => 'I'],
             ['id_turno' => 2, 'id_operatore' => 2, 'id_cliente' => 1, 'id_sede' => 1, 'tipo' => 'P'],
             ['id_turno' => 2, 'id_operatore' => 2, 'id_cliente' => 1, 'id_sede' => 1, 'tipo' => 'F'],
             ['id_turno' => 3, 'id_operatore' => 3, 'id_cliente' => 1, 'id_sede' => 1, 'tipo' => 'I'],
+        ]);
+        DB::table('tc_ritardi')->insert([
+            ['id' => 1, 'id_turno' => 2, 'id_operatore' => 2, 'inizio' => 1, 'fine' => 0],
+            ['id' => 2, 'id_turno' => 3, 'id_operatore' => 3, 'inizio' => 1, 'fine' => 0],
         ]);
 
         $componente = Livewire::actingAs(User::findOrFail(1))->test(Turni::class)
@@ -169,6 +180,7 @@ class TurniGestioneTest extends TestCase
             ->assertSee('Il testo non coincide: eliminazione non eseguita.');
 
         $this->assertNotNull(DB::table('tc_turni')->find(2));
+        $this->assertSame(1, DB::table('tc_ritardi')->where('id_turno', 2)->count());
 
         $componente
             ->set('conferma', ' CONFERMA ')
@@ -180,8 +192,10 @@ class TurniGestioneTest extends TestCase
 
         $this->assertNull(DB::table('tc_turni')->find(2));
         $this->assertSame(0, DB::table('tc_gda')->where('id_turno', 2)->count());
+        $this->assertSame(0, DB::table('tc_ritardi')->where('id_turno', 2)->count());
         $this->assertNotNull(DB::table('tc_turni')->find(3));
         $this->assertSame('I', DB::table('tc_gda')->where('id_turno', 3)->value('tipo'));
+        $this->assertSame(1, DB::table('tc_ritardi')->where('id_turno', 3)->count());
     }
 
     public function test_eliminazione_multipla_cancella_i_turni_selezionati_e_i_gda_collegati(): void

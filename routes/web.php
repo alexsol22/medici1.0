@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\SmsConsegnaController;
+use App\Http\Controllers\SuggerimentiClienteController;
 use App\Http\Controllers\WhatsAppWebhookController;
 use App\Livewire;
 use App\Models\Legacy\Tracking;
@@ -110,6 +111,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('ruolo:super_admin,admin')->group(function () {
         Route::get('/clienti', Livewire\Clienti::class)->name('clienti');
+        Route::get('/clienti/suggerimenti', SuggerimentiClienteController::class)->name('clienti.suggerimenti');
         Route::get('/operatori', Livewire\Operatori::class)->name('operatori');
         Route::get('/messaggi', Livewire\ModelliMessaggio::class)->name('messaggi');
         Route::get('/generatore-qr', Livewire\GeneratoreQr::class)->name('generatore-qr');

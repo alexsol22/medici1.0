@@ -44,6 +44,7 @@ class InviaAvvisoTurni extends Command
         foreach ($turni as $turno) {
             $dati = (array) $turno + ['giorno' => $turno->inizio, 'orario' => $turno->ora_inizio];
             $sms = $comunicazioni->inviaSms($config, $dati, $turno->cellulare, (int) $turno->id_operatore);
+            $whatsapp = $comunicazioni->inviaWhatsapp($config, $dati, $turno->cellulare, (int) $turno->id_operatore);
             $emailInviate = 0;
             $motivoEmail = null;
 
@@ -70,6 +71,9 @@ class InviaAvvisoTurni extends Command
                 'sms_inviati' => $sms['inviati'],
                 'sms_falliti' => $sms['falliti'],
                 'motivo_sms' => $sms['motivo'],
+                'whatsapp_inviati' => $whatsapp['inviati'],
+                'whatsapp_falliti' => $whatsapp['falliti'],
+                'motivo_whatsapp' => $whatsapp['motivo'],
                 'email_inviate' => $emailInviate,
                 'email' => (string) $turno->email,
                 'motivo_email' => $motivoEmail,

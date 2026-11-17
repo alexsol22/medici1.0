@@ -39,8 +39,8 @@ class WhatsApp
             $mancanti[] = 'WHATSAPP_PHONE_NUMBER_ID';
         }
 
-        if (trim((string) $numero) === '') {
-            $mancanti[] = 'WHATSAPP_TEST_TO oppure il numero nel comando';
+        if ($this->elenco((string) $numero) === []) {
+            $mancanti[] = 'WHATSAPP_TEST_TO oppure i numeri nel comando';
         }
 
         if (trim((string) $template) === '') {
@@ -51,9 +51,11 @@ class WhatsApp
     }
 
     /**
-     * @param  list<string>  $parametri
+     * Lista posizionale per {{1}}, oppure mappa nome => testo per {{avviso}}.
+     *
+     * @param  list<string>|array<string, string>  $parametri
      */
-    public function inviaTemplate(string $numero, string $template, string $lingua, array $parametri = [], int $idOperatore = 0): ?SendWhatsapp
+    public function inviaTemplate(string $numero, string $template, string $lingua, array $parametri = [], int $idOperatore = 0, ?string $testo = null): ?SendWhatsapp
     {
         $numero = $this->numero($numero);
         $template = trim($template);
@@ -73,19 +75,29 @@ class WhatsApp
         ];
 
         if ($parametri !== []) {
+            $nominati = ! array_is_list($parametri);
+            $parametriBody = [];
+
+            foreach ($parametri as $nome => $parametro) {
+                $voce = ['type' => 'text', 'text' => (string) $parametro];
+
+                if ($nominati) {
+                    $voce['parameter_name'] = (string) $nome;
+                }
+
+                $parametriBody[] = $voce;
+            }
+
             $corpo['template']['components'] = [[
                 'type' => 'body',
-                'parameters' => array_map(
-                    fn (string $parametro): array => ['type' => 'text', 'text' => $parametro],
-                    $parametri,
-                ),
+                'parameters' => $parametriBody,
             ]];
         }
 
-        return $this->invia($numero, 'template', $corpo, $template, $lingua, $parametri, $idOperatore);
+        return $this->invia($numero, 'template', $corpo, $template, $lingua, $parametri, $idOperatore, $testo);
     }
 
-    public function inviaTesto(string $numero, string $testo, int $idOperatore = 0): ?SendWhatsapp
+    public function inviaTesto(string $numero, string $testo, int $idOperatore = 0, ?string $categoria = null): ?SendWhatsapp
     {
         $numero = $this->numero($numero);
         $testo = trim($testo);
@@ -94,12 +106,19 @@ class WhatsApp
             return null;
         }
 
-        return $this->invia($numero, 'testo', [
+        $corpo = [
             'messaging_product' => 'whatsapp',
             'to' => $numero,
             'type' => 'text',
             'text' => ['body' => $testo],
-        ], null, null, [], $idOperatore, $testo);
+        ];
+
+        if ($categoria !== null && $categoria !== '') {
+            $corpo['recipient_type'] = 'individual';
+            $corpo['category'] = $categoria;
+        }
+
+        return $this->invia($numero, 'testo', $corpo, null, null, [], $idOperatore, $testo);
     }
 
     /** @param  array<string, mixed>  $payload */
@@ -122,6 +141,26 @@ class WhatsApp
                 }
             }
         }
+    }
+
+    /**
+     * Numeri internazionali distinti, da una lista separata da virgola o punto e virgola.
+     *
+     * @return list<string>
+     */
+    public function elenco(string $lista): array
+    {
+        $numeri = [];
+
+        foreach (preg_split('/[,;]+/', $lista) ?: [] as $numero) {
+            $numero = $this->numero($numero);
+
+            if ($numero !== '') {
+                $numeri[$numero] = $numero;
+            }
+        }
+
+        return array_values($numeri);
     }
 
     public function numero(string $numero): string

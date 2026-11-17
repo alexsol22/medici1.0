@@ -85,10 +85,25 @@ class SidebarTest extends TestCase
             ->assertDontSee('Presto')
             ->assertSee('Utenti')
             ->assertSee('Generatore QR')
+            ->assertSee('Strumenti')
             ->assertDontSee('Data Base');
         $risposta->assertDontSee('href="'.route('accessi').'"', false);
+        $risposta->assertDontSee('href="'.route('impostazioni').'"', false);
         $risposta->assertSee('href="'.route('generatore-qr').'"', false);
         $risposta->assertDontSee('Canale messaggi');
+
+        $contenuto = $risposta->getContent();
+        $modelli = strpos($contenuto, 'href="'.route('messaggi').'"');
+        $email = strpos($contenuto, 'href="'.route('messaggi.canale', ['canale' => 'email']).'"');
+        $whatsapp = strpos($contenuto, 'href="'.route('messaggi.canale', ['canale' => 'whatsapp']).'"');
+        $utenti = strpos($contenuto, 'href="'.route('amministratori').'"');
+        $qr = strpos($contenuto, 'href="'.route('generatore-qr').'"');
+
+        $this->assertNotFalse($modelli);
+        $this->assertLessThan($email, $modelli);
+        $this->assertLessThan($whatsapp, $email);
+        $this->assertLessThan($utenti, $whatsapp);
+        $this->assertLessThan($qr, $utenti);
         $risposta->assertDontSee('href="'.route('sedi').'"', false);
     }
 

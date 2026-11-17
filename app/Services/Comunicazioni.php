@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\WhatsappStato;
 use App\Mail\NotificaHtml;
 use App\Models\Legacy\Cliente;
 use App\Models\Legacy\Email;
@@ -18,6 +19,8 @@ use Throwable;
 class Comunicazioni
 {
     private ?string $destinatarioProva = null;
+
+    private ?WhatsApp $whatsapp = null;
 
     public function __construct(private ?Sms $sms = null) {}
 
@@ -171,6 +174,69 @@ class Comunicazioni
         }
 
         return ['inviati' => $inviati, 'falliti' => count($numeri) - $inviati, 'motivo' => null];
+    }
+
+    /**
+     * WhatsApp all'operatore del turno, con lo stesso testo del modello SMS.
+     * I cron di prova non inviano.
+     *
+     * @param  array<string, mixed>  $dati
+     * @return array{inviati: int, falliti: int, motivo: string|null}
+     */
+    public function inviaWhatsapp(Messaggio $config, array $dati, ?string $cellulare, int $idOperatore): array
+    {
+        if ($this->destinatarioProva !== null) {
+            return ['inviati' => 0, 'falliti' => 0, 'motivo' => 'prova sicura'];
+        }
+
+        if ($cellulare === null || trim($cellulare) === '') {
+            return ['inviati' => 0, 'falliti' => 0, 'motivo' => 'operatore senza cellulare'];
+        }
+
+        $whatsapp = $this->whatsapp ??= app(WhatsApp::class);
+
+        if (! $whatsapp->abilitato()) {
+            return ['inviati' => 0, 'falliti' => 0, 'motivo' => 'invio WhatsApp disattivato'];
+        }
+
+        if (! config('whatsapp.cron')) {
+            return ['inviati' => 0, 'falliti' => 0, 'motivo' => 'invio WhatsApp dai cron disattivato'];
+        }
+
+        $testo = trim($this->testo($config->modello_sms, $dati));
+
+        if ($testo === '') {
+            $testo = trim(html_entity_decode(strip_tags($this->testo($config->modello_email, $dati))));
+        }
+
+        if ($testo === '') {
+            return ['inviati' => 0, 'falliti' => 0, 'motivo' => 'testo messaggio vuoto'];
+        }
+
+        $template = trim((string) config('whatsapp.template_cron'));
+
+        if ($template === '') {
+            return ['inviati' => 0, 'falliti' => 0, 'motivo' => 'template WhatsApp non configurato'];
+        }
+
+        $inviato = $whatsapp->inviaTemplate(
+            $cellulare,
+            $template,
+            (string) config('whatsapp.lingua_cron'),
+            [(string) config('whatsapp.parametro_cron') => $testo],
+            $idOperatore,
+            $testo,
+        );
+
+        if ($inviato === null) {
+            return ['inviati' => 0, 'falliti' => 1, 'motivo' => 'invio non eseguito'];
+        }
+
+        if ($inviato->stato === WhatsappStato::Fallito) {
+            return ['inviati' => 0, 'falliti' => 1, 'motivo' => $inviato->errore];
+        }
+
+        return ['inviati' => 1, 'falliti' => 0, 'motivo' => null];
     }
 
     /** Come MyEmailsNative::sendEmailAccessi: credenziali provvisorie di un nuovo account (non registrate in tc_email per non salvare la password). */
