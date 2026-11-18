@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AccountCollaudo;
 use App\Http\Middleware\RuoloRichiesto;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -13,7 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['ruolo' => RuoloRichiesto::class]);
+        $middleware->alias([
+            'ruolo' => RuoloRichiesto::class,
+            'account-collaudo' => AccountCollaudo::class,
+        ]);
         $middleware->redirectGuestsTo('/login');
         $middleware->validateCsrfTokens(except: ['sms/consegna', 'whatsapp/webhook']);
     })

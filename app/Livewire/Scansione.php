@@ -14,6 +14,8 @@ class Scansione extends Component
 {
     public ?array $risultato = null;
 
+    public int $esitoId = 0;
+
     public string $nota = '';
 
     public function timbra(string $codice, ?float $lat = null, ?float $lng = null, bool $sostituzione = false, ?string $nota = null): void
@@ -34,8 +36,16 @@ class Scansione extends Component
         $this->risultato = $sostituzione
             ? $t->sostituisci($user, $codice, $lat, $lng, $note)
             : $t->scansiona($user, $codice, $lat, $lng, $note);
+        $this->esitoId++;
 
         $this->nota = '';
+    }
+
+    public function nascondiEsito(int $esitoId): void
+    {
+        if ($this->esitoId === $esitoId) {
+            $this->risultato = null;
+        }
     }
 
     public function render(Timbratura $t)

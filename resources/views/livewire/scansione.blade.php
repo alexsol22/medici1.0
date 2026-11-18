@@ -73,7 +73,7 @@
         </div>
 
         @if ($risultato)
-            <div class="rounded-2xl p-4 text-base font-medium leading-relaxed ring-1 sm:p-5 {{ $risultato['ok'] ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-rose-200' }}">
+            <div wire:key="esito-{{ $esitoId }}" x-data x-init="setTimeout(() => $wire.nascondiEsito({{ $esitoId }}), 10000)" role="status" class="rounded-2xl p-4 text-base font-medium leading-relaxed ring-1 sm:p-5 {{ $risultato['ok'] ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-rose-200' }}">
                 {{ $risultato['ok'] ? '✅' : '⚠️' }}
                 @if ($risultato['ok'] && isset($risultato['tipo']))<span class="mr-1 inline-block rounded-md bg-white/70 px-2 py-1 text-sm font-bold uppercase">{{ ['I' => 'Ingresso', 'F' => 'Uscita', 'P' => 'Passaggio'][$risultato['tipo']] ?? '' }}</span>@endif
                 {{ $risultato['message'] }}

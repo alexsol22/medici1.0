@@ -3,6 +3,7 @@
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\SmsConsegnaController;
 use App\Http\Controllers\SuggerimentiClienteController;
+use App\Http\Controllers\SuperTestController;
 use App\Http\Controllers\WhatsAppWebhookController;
 use App\Livewire;
 use App\Models\Legacy\Tracking;
@@ -79,11 +80,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/bacheca', Livewire\Bacheca::class)->name('bacheca');
     Route::get('/documenti', Livewire\Documenti::class)->name('documenti');
     Route::get('/documenti/{documento}/scarica', [DownloadController::class, 'documento'])->name('documenti.scarica');
-    Route::get('/collaudo-manuale', function () {
-        abort_unless(auth()->user()->email === 'alessiosolari22@gmail.com', 403);
+    Route::middleware('account-collaudo')->group(function () {
+        Route::get('/collaudo-manuale', fn () => response()->view('collaudo-manuale'))->name('collaudo-manuale');
 
-        return response()->view('collaudo-manuale');
-    })->name('collaudo-manuale');
+        Route::get('/supertest', [SuperTestController::class, 'index'])->name('supertest');
+        Route::get('/supertest/sessione', [SuperTestController::class, 'sessione'])->name('supertest.sessione');
+        Route::post('/supertest/sessione', [SuperTestController::class, 'avvia'])->middleware('throttle:6,1')->name('supertest.sessione.avvia');
+        Route::delete('/supertest/sessione', [SuperTestController::class, 'elimina'])->name('supertest.sessione.elimina');
+        Route::post('/supertest/esegui', [SuperTestController::class, 'esegui'])->middleware('throttle:80,1')->name('supertest.esegui');
+    });
 
     Route::middleware('ruolo:operatore')->group(function () {
         Route::get('/scansione', Livewire\Scansione::class)->name('scansione');

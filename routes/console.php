@@ -15,3 +15,4 @@ Schedule::command('notifiche:avviso-turni', $prova)->hourly()->withoutOverlappin
 Schedule::command('notifiche:ritardi', $prova)->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('notifiche:scadenze', $prova)->dailyAt('08:00')->withoutOverlapping();
 Schedule::command('notifiche:programmazione', $prova)->weeklyOn(1, '07:00')->withoutOverlapping();
+Schedule::command('supertest:pulisci')->everyMinute()->withoutOverlapping();

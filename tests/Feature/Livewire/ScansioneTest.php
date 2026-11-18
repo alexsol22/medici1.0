@@ -130,6 +130,23 @@ class ScansioneTest extends TestCase
         $this->assertSame(1, DB::table('tc_gda')->count());
     }
 
+    public function test_esito_timbratura_resta_visibile_e_si_puo_chiudere_dopo_dieci_secondi(): void
+    {
+        $this->preparaTurno();
+
+        Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)
+            ->call('timbra', 'ITALPOL*000001', 45.0567356, 7.6693, false, null)
+            ->assertSee('Inizio turno registrato con successo')
+            ->assertSee('Timbrato alle', false)
+            ->assertSee('nascondiEsito(1)', false)
+            ->assertSee('10000', false)
+            ->call('nascondiEsito', 0)
+            ->assertSee('Inizio turno registrato con successo')
+            ->call('nascondiEsito', 1)
+            ->assertDontSee('Inizio turno registrato con successo')
+            ->assertSee('Timbrato alle');
+    }
+
     public function test_nota_oltre_255_caratteri_non_registra_la_timbratura(): void
     {
         $this->preparaTurno();
