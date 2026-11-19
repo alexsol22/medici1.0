@@ -101,7 +101,7 @@
         <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h2 class="text-lg font-bold text-slate-800">QR stampati</h2>
-                <p class="mt-1 text-sm text-slate-500">Tutti i codici generati, anche quelli dei giorni scorsi. Lo stato del file dice se è già stato stampato: puoi sostituirlo oppure lasciarlo.</p>
+                <p class="mt-1 text-sm text-slate-500">Tutti i codici generati, anche quelli dei giorni scorsi. Lo stato del file dice se è già stato stampato.</p>
             </div>
             <p class="text-sm font-semibold text-slate-500">{{ $totaleCodici }} in archivio · {{ $codiciStampati }} con file · {{ $codiciSenzaFile }} senza file</p>
         </div>
@@ -147,7 +147,6 @@
                                 <div class="flex justify-end gap-2">
                                     @if ($stampato)
                                         <a href="{{ route('codici.qrcode', $codice) }}" class="btn-soft !px-3 !py-1.5">Scarica PNG</a>
-                                        <button type="button" wire:click="ristampa({{ $codice->id }})" wire:confirm="Sostituire il file di {{ $codice->codice }}? Il file già stampato viene sovrascritto." wire:loading.attr="disabled" wire:target="ristampa,generaLiberi" class="btn-soft !px-3 !py-1.5">Sostituisci</button>
                                     @else
                                         <button type="button" wire:click="ristampa({{ $codice->id }})" wire:loading.attr="disabled" wire:target="ristampa,generaLiberi" class="btn-primary !px-3 !py-1.5">Genera file</button>
                                     @endif
@@ -162,7 +161,7 @@
                 </tbody>
             </table>
         </div>
-        <p class="mt-3 text-xs text-slate-500">Sostituisci e Genera file usano colore, titolo e logo del pannello. Con la personalizzazione spenta il file resta nero.</p>
+        <p class="mt-3 text-xs text-slate-500">Genera file usa colore, titolo e logo del pannello. Con la personalizzazione spenta il file resta nero.</p>
         <div class="mt-4">{{ $codici->links() }}</div>
     </section>
 </div>
