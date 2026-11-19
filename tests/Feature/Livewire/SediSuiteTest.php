@@ -253,6 +253,63 @@ class SediSuiteTest extends TestCase
             ->assertSee('Portineria');
     }
 
+    public function test_qr_generator_lists_old_codes_and_shows_whether_the_file_was_printed(): void
+    {
+        DB::table('tc_clienti')->insert(['id' => 7, 'ragione_sociale' => 'Acme']);
+        DB::table('tc_sedi')->insert([
+            ['id' => 3, 'id_cliente' => 7, 'descrizione' => 'Portineria nord'],
+            ['id' => 4, 'id_cliente' => 7, 'descrizione' => 'Magazzino'],
+        ]);
+        DB::table('tc_postazioni')->insert(['id' => 8, 'id_cliente' => 7, 'id_sede' => 4, 'titolo' => 'Cancello']);
+        $stampato = DB::table('tc_codici')->insertGetId(['codice' => 'ITALPOL*000010', 'stato' => 'A', 'tipo' => 'S', 'id_sede' => 3]);
+        $mancante = DB::table('tc_codici')->insertGetId(['codice' => 'ITALPOL*000011', 'stato' => 'C']);
+        DB::table('tc_codici')->insert(['codice' => 'ITALPOL*000012', 'stato' => 'A', 'tipo' => 'P', 'id_sede' => 4, 'id_postazione' => 8]);
+        Storage::disk($this->disco)->put('protected/documenti/QrcodeText/ITALPOL*000010.png', 'png-vecchio');
+        Cache::put('generatore-qr.'.now()->toDateString(), 200, now()->endOfDay());
+
+        Livewire::actingAs($this->admin())->test(GeneratoreQr::class)
+            ->assertSee('ITALPOL*000010')
+            ->assertSee('ITALPOL*000011')
+            ->assertSee('ITALPOL*000012')
+            ->assertSee('Acme · Portineria nord')
+            ->assertSee('Acme · Magazzino · Cancello')
+            ->assertSee('Non assegnato')
+            ->assertSee('Stampato')
+            ->assertSee('Da stampare')
+            ->set('statoFile', 'assenti')
+            ->assertSee('ITALPOL*000011')
+            ->assertDontSee('ITALPOL*000010')
+            ->set('statoFile', 'tutti')
+            ->set('assegnazione', 'liberi')
+            ->assertSee('ITALPOL*000011')
+            ->assertDontSee('ITALPOL*000012')
+            ->set('assegnazione', 'tutti')
+            ->set('cerca', 'Portineria')
+            ->assertSee('ITALPOL*000010')
+            ->assertDontSee('ITALPOL*000011')
+            ->set('cerca', '')
+            ->set('personalizza', true)
+            ->set('titolo', str_repeat('a', 41))
+            ->call('ristampa', $stampato)
+            ->assertHasErrors(['titolo' => 'Il titolo può avere al massimo 40 caratteri.'])
+            ->set('titolo', 'Nuovo titolo')
+            ->set('colore', '#112233')
+            ->call('ristampa', $stampato)
+            ->assertHasNoErrors()
+            ->assertSee('Sostituito il file di ITALPOL*000010.')
+            ->call('ristampa', $mancante)
+            ->assertSee('Creato il file di ITALPOL*000011.');
+
+        $sostituito = Storage::disk($this->disco)->get('protected/documenti/QrcodeText/ITALPOL*000010.png');
+        $creato = Storage::disk($this->disco)->get('protected/documenti/QrcodeText/ITALPOL*000011.png');
+
+        $this->assertNotSame('png-vecchio', $sostituito);
+        $this->assertSame('image/png', getimagesizefromstring($sostituito)['mime']);
+        $this->assertSame('image/png', getimagesizefromstring($creato)['mime']);
+        $this->assertSame(3, DB::table('tc_codici')->count());
+        $this->assertSame(200, Cache::get('generatore-qr.'.now()->toDateString()));
+    }
+
     public function test_qr_generator_keeps_codes_plain_unless_personalization_is_enabled(): void
     {
         Livewire::actingAs($this->admin())->test(GeneratoreQr::class)

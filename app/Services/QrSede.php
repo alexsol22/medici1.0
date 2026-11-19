@@ -117,6 +117,183 @@ class QrSede
         }
     }
 
+    public function generaMancante(string $codice): bool
+    {
+        $disco = Storage::disk(config('filesystems.files_disk'));
+        $percorso = $this->percorso($codice);
+
+        if ($disco->exists($percorso)) {
+            return false;
+        }
+
+        $this->scriviAziendale($codice, $percorso);
+
+        return true;
+    }
+
+    private function scriviAziendale(string $codice, string $percorso): void
+    {
+        $matrice = Encoder::encode($codice, ErrorCorrectionLevel::H())->getMatrix();
+        $moduli = $matrice->getWidth();
+        $scala = 40;
+        $latoQr = $moduli * $scala;
+        $tela = 1260;
+        $origineX = intdiv($tela - $latoQr, 2);
+        $origineY = 110;
+        $immagine = imagecreatetruecolor($tela, $tela);
+        $bianco = imagecolorallocate($immagine, 255, 255, 255);
+        $navy = imagecolorallocate($immagine, 16, 22, 38);
+        $ciano = imagecolorallocate($immagine, 39, 154, 201);
+        $nero = imagecolorallocate($immagine, 0, 0, 0);
+        imagefill($immagine, 0, 0, $bianco);
+
+        $coloriRiga = [];
+
+        for ($y = 0; $y < $moduli; $y++) {
+            [$rosso, $verde, $blu] = $this->coloreModulo($y, $moduli);
+            $coloriRiga[$y] = imagecolorallocate($immagine, $rosso, $verde, $blu);
+        }
+
+        $diametro = 34;
+
+        for ($y = 0; $y < $moduli; $y++) {
+            for ($x = 0; $x < $moduli; $x++) {
+                if ($matrice->get($x, $y) !== 1 || $this->eFinder($x, $y, $moduli)) {
+                    continue;
+                }
+
+                $centroX = $origineX + $x * $scala + intdiv($scala, 2);
+                $centroY = $origineY + $y * $scala + intdiv($scala, 2);
+                imagefilledellipse($immagine, $centroX, $centroY, $diametro, $diametro, $coloriRiga[$y]);
+            }
+        }
+
+        foreach ([[0, 0], [$moduli - 7, 0], [0, $moduli - 7]] as [$fx, $fy]) {
+            $this->disegnaFinder(
+                $immagine,
+                $origineX + $fx * $scala,
+                $origineY + $fy * $scala,
+                $scala,
+                $navy,
+                $ciano,
+                $bianco,
+            );
+        }
+
+        $this->disegnaLogo($immagine, $origineX, $origineY, $latoQr);
+        $this->disegnaCodice($immagine, $nero, $codice, $origineY + $latoQr + 100);
+
+        ob_start();
+        try {
+            if (! imagejpeg($immagine, null, 100)) {
+                throw new RuntimeException("Impossibile generare l'immagine QR: {$codice}");
+            }
+            $jpeg = ob_get_contents();
+        } finally {
+            ob_end_clean();
+            imagedestroy($immagine);
+        }
+
+        $disco = Storage::disk(config('filesystems.files_disk'));
+
+        if ($jpeg === false || ! $disco->put($percorso, $jpeg)) {
+            throw new RuntimeException("Impossibile salvare l'immagine QR: {$percorso}");
+        }
+    }
+
+    /** @return array{0: int, 1: int, 2: int} */
+    private function coloreModulo(int $riga, int $moduli): array
+    {
+        $t = $moduli <= 1 ? 0 : $riga / ($moduli - 1);
+        $alto = [16, 22, 38];
+        $basso = [49, 156, 201];
+
+        return [
+            (int) round($alto[0] + ($basso[0] - $alto[0]) * $t),
+            (int) round($alto[1] + ($basso[1] - $alto[1]) * $t),
+            (int) round($alto[2] + ($basso[2] - $alto[2]) * $t),
+        ];
+    }
+
+    private function eFinder(int $x, int $y, int $moduli): bool
+    {
+        $dentro = fn (int $coordinata, int $origine): bool => $coordinata >= $origine && $coordinata < $origine + 7;
+
+        return ($dentro($x, 0) && $dentro($y, 0))
+            || ($dentro($x, $moduli - 7) && $dentro($y, 0))
+            || ($dentro($x, 0) && $dentro($y, $moduli - 7));
+    }
+
+    private function disegnaFinder(\GdImage $immagine, int $x, int $y, int $scala, int $navy, int $ciano, int $bianco): void
+    {
+        $lato = 7 * $scala;
+        $this->rettangoloArrotondato($immagine, $x, $y, $lato, $lato, (int) round($scala * 1.15), $navy);
+        $this->rettangoloArrotondato($immagine, $x + $scala, $y + $scala, $lato - 2 * $scala, $lato - 2 * $scala, (int) round($scala * 0.85), $bianco);
+        $this->rettangoloArrotondato($immagine, $x + 2 * $scala, $y + 2 * $scala, 3 * $scala, 3 * $scala, (int) round($scala * 0.55), $ciano);
+    }
+
+    private function rettangoloArrotondato(\GdImage $immagine, int $x, int $y, int $w, int $h, int $r, int $colore): void
+    {
+        $r = max(1, min($r, intdiv(min($w, $h), 2)));
+        imagefilledrectangle($immagine, $x + $r, $y, $x + $w - $r, $y + $h, $colore);
+        imagefilledrectangle($immagine, $x, $y + $r, $x + $w, $y + $h - $r, $colore);
+        imagefilledellipse($immagine, $x + $r, $y + $r, $r * 2, $r * 2, $colore);
+        imagefilledellipse($immagine, $x + $w - $r, $y + $r, $r * 2, $r * 2, $colore);
+        imagefilledellipse($immagine, $x + $r, $y + $h - $r, $r * 2, $r * 2, $colore);
+        imagefilledellipse($immagine, $x + $w - $r, $y + $h - $r, $r * 2, $r * 2, $colore);
+    }
+
+    private function disegnaLogo(\GdImage $immagine, int $origineX, int $origineY, int $latoQr): void
+    {
+        $percorso = resource_path('brand/logo-qr-italpol.png');
+        $logo = is_file($percorso) ? imagecreatefrompng($percorso) : false;
+
+        if ($logo === false) {
+            imagedestroy($immagine);
+            throw new RuntimeException('Manca il logo del QR aziendale.');
+        }
+
+        imagealphablending($immagine, true);
+        $x = $origineX + intdiv($latoQr - imagesx($logo), 2);
+        $y = $origineY + intdiv($latoQr - imagesy($logo), 2) - (int) round($latoQr * 0.02);
+
+        for ($py = 0; $py < imagesy($logo); $py++) {
+            for ($px = 0; $px < imagesx($logo); $px++) {
+                $colore = imagecolorat($logo, $px, $py);
+
+                if ((($colore >> 24) & 127) > 16) {
+                    continue;
+                }
+
+                imagesetpixel(
+                    $immagine,
+                    $x + $px,
+                    $y + $py,
+                    imagecolorallocate($immagine, ($colore >> 16) & 255, ($colore >> 8) & 255, $colore & 255),
+                );
+            }
+        }
+
+        imagedestroy($logo);
+    }
+
+    private function disegnaCodice(\GdImage $immagine, int $colore, string $codice, int $baseline): void
+    {
+        $font = resource_path('fonts/DejaVuSans.ttf');
+
+        if (! is_file($font)) {
+            imagestring($immagine, 5, 8, $baseline - 16, $codice, $colore);
+
+            return;
+        }
+
+        $size = 28;
+        $box = imagettfbbox($size, 0, $font, $codice);
+        $larghezza = $box === false ? 0 : abs($box[2] - $box[0]);
+        $x = (int) max(0, (imagesx($immagine) - $larghezza) / 2);
+        imagettftext($immagine, $size, 0, $x, $baseline, $colore, $font, $codice);
+    }
+
     private function altezzaDidascalia(string $titolo): int
     {
         return $titolo === '' ? 56 : 96;

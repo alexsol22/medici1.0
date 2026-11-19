@@ -31,6 +31,28 @@ class Codice extends LegacyModel
         return $this->belongsTo(Postazione::class, 'id_postazione');
     }
 
+    public function assegnatoA(): string
+    {
+        if ($this->stato !== self::ATTIVO) {
+            return 'Non assegnato';
+        }
+
+        $parti = $this->tipo === self::POSTAZIONE
+            ? [
+                $this->postazione?->cliente?->ragione_sociale ?? $this->sede?->cliente?->ragione_sociale ?? $this->postazione?->sede?->cliente?->ragione_sociale,
+                $this->postazione?->sede?->descrizione ?? $this->sede?->descrizione,
+                $this->postazione?->titolo,
+            ]
+            : [
+                $this->sede?->cliente?->ragione_sociale,
+                $this->sede?->descrizione,
+            ];
+
+        $testo = collect($parti)->filter(fn (mixed $parte): bool => filled($parte))->implode(' · ');
+
+        return $testo !== '' ? $testo : 'Assegnato';
+    }
+
     public function svg(int $size = 200): string
     {
         return (new Writer(new ImageRenderer(new RendererStyle($size, 1), new SvgImageBackEnd)))->writeString($this->codice);

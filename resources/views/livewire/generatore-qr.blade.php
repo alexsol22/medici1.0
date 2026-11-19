@@ -96,4 +96,73 @@
             </ul>
         </section>
     @endif
+
+    <section class="card p-5 sm:p-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <h2 class="text-lg font-bold text-slate-800">QR stampati</h2>
+                <p class="mt-1 text-sm text-slate-500">Tutti i codici generati, anche quelli dei giorni scorsi. Lo stato del file dice se è già stato stampato: puoi sostituirlo oppure lasciarlo.</p>
+            </div>
+            <p class="text-sm font-semibold text-slate-500">{{ $totaleCodici }} in archivio · {{ $codiciStampati }} con file · {{ $codiciSenzaFile }} senza file</p>
+        </div>
+
+        <div class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+            <input type="search" wire:model.live.debounce.300ms="cerca" class="input" placeholder="Cerca codice, cliente, sede o postazione" aria-label="Cerca tra i QR stampati">
+            <select wire:model.live="statoFile" class="input" aria-label="Stato del file">
+                <option value="tutti">Tutti i file</option>
+                <option value="stampati">Già stampati</option>
+                <option value="assenti">Da stampare</option>
+            </select>
+            <select wire:model.live="assegnazione" class="input" aria-label="Assegnazione">
+                <option value="tutti">Tutte le assegnazioni</option>
+                <option value="liberi">Non assegnati</option>
+                <option value="assegnati">Assegnati</option>
+            </select>
+        </div>
+
+        <div class="mt-4 overflow-x-auto">
+            <table class="min-w-full divide-y divide-sky-100">
+                <thead class="bg-sky-50/60">
+                    <tr>
+                        <th class="th">Codice</th>
+                        <th class="th">Chi lo ha</th>
+                        <th class="th">File</th>
+                        <th class="th text-right">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-sky-50">
+                    @forelse ($codici as $codice)
+                        @php($stampato = isset($filePresenti[$codice->codice]))
+                        <tr wire:key="qr-archivio-{{ $codice->id }}">
+                            <td class="td font-mono font-semibold text-slate-800">{{ $codice->codice }}</td>
+                            <td class="td">{{ $codice->assegnatoA() }}</td>
+                            <td class="td">
+                                @if ($stampato)
+                                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">Stampato</span>
+                                @else
+                                    <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">Da stampare</span>
+                                @endif
+                            </td>
+                            <td class="td">
+                                <div class="flex justify-end gap-2">
+                                    @if ($stampato)
+                                        <a href="{{ route('codici.qrcode', $codice) }}" class="btn-soft !px-3 !py-1.5">Scarica PNG</a>
+                                        <button type="button" wire:click="ristampa({{ $codice->id }})" wire:confirm="Sostituire il file di {{ $codice->codice }}? Il file già stampato viene sovrascritto." wire:loading.attr="disabled" wire:target="ristampa,generaLiberi" class="btn-soft !px-3 !py-1.5">Sostituisci</button>
+                                    @else
+                                        <button type="button" wire:click="ristampa({{ $codice->id }})" wire:loading.attr="disabled" wire:target="ristampa,generaLiberi" class="btn-primary !px-3 !py-1.5">Genera file</button>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="td text-center text-slate-500">Nessun QR da mostrare.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <p class="mt-3 text-xs text-slate-500">Sostituisci e Genera file usano colore, titolo e logo del pannello. Con la personalizzazione spenta il file resta nero.</p>
+        <div class="mt-4">{{ $codici->links() }}</div>
+    </section>
 </div>

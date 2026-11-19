@@ -6,14 +6,18 @@ use App\Models\Legacy\Codice;
 use App\Models\User;
 use App\Services\QrAziendale;
 use App\Services\QrSede;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use League\Flysystem\UnableToListContents;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 use RuntimeException;
 use Throwable;
 
@@ -21,7 +25,7 @@ use Throwable;
 #[Title('Generatore QR')]
 class GeneratoreQr extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, WithPagination;
 
     private const LIMITE_GIORNO = 200;
 
@@ -37,6 +41,18 @@ class GeneratoreQr extends Component
 
     /** @var array<int, array{id: int, codice: string}> */
     public array $appenaCreati = [];
+
+    #[Url(except: '')]
+    public string $cerca = '';
+
+    #[Url(except: 'tutti')]
+    public string $statoFile = 'tutti';
+
+    #[Url(except: 'tutti')]
+    public string $assegnazione = 'tutti';
+
+    /** @var array<int, string>|null */
+    private ?array $filePresenti = null;
 
     public function mount(): void
     {
@@ -97,11 +113,67 @@ class GeneratoreQr extends Component
             'codice' => $codice->codice,
         ], $creati);
 
+        $this->resetPage();
+        $this->filePresenti = null;
         $primo = $creati[0]->codice;
         $ultimo = $creati[array_key_last($creati)]->codice;
         session()->flash('qr', count($creati) === 1
             ? "Creato {$primo}."
             : "Creati da {$primo} a {$ultimo}.");
+    }
+
+    public function updatingCerca(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingStatoFile(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingAssegnazione(): void
+    {
+        $this->resetPage();
+    }
+
+    public function ristampa(int $id, QrSede $qr): void
+    {
+        $this->autorizzaStaff();
+        $dati = $this->validate(
+            [
+                'personalizza' => ['boolean'],
+                'colore' => ['exclude_unless:personalizza,true', 'required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+                'titolo' => ['exclude_unless:personalizza,true', 'nullable', 'string', 'max:40'],
+                'logo' => ['exclude_unless:personalizza,true', 'nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            ],
+            [
+                'titolo.max' => 'Il titolo può avere al massimo 40 caratteri.',
+            ],
+            [
+                'titolo' => 'titolo',
+                'colore' => 'colore',
+                'logo' => 'logo',
+            ],
+        );
+
+        $codice = Codice::query()->findOrFail($id);
+        abort_if(blank($codice->codice), 404);
+
+        $personalizza = (bool) $dati['personalizza'];
+        $percorso = $qr->percorso($codice->codice);
+        $giaStampato = Storage::disk(config('filesystems.files_disk'))->exists($percorso);
+        $qr->generaPersonalizzato(
+            $codice->codice,
+            $personalizza ? $dati['colore'] : '#000000',
+            $personalizza ? $this->logo?->get() : null,
+            $personalizza ? trim(preg_replace('/\s+/u', ' ', $dati['titolo'] ?? '') ?? '') : '',
+        );
+        $this->filePresenti = null;
+
+        session()->flash('qr', $giaStampato
+            ? "Sostituito il file di {$codice->codice}."
+            : "Creato il file di {$codice->codice}.");
     }
 
     public function render(QrAziendale $generatore)
@@ -114,11 +186,87 @@ class GeneratoreQr extends Component
             ? 'data:'.$this->logo->getMimeType().';base64,'.base64_encode($this->logo->get())
             : null;
 
+        $conFile = $this->codiciConFile();
+        $totale = Codice::query()->count();
+        $stampati = $conFile === [] ? 0 : Codice::query()->whereIn('codice', $conFile)->count();
+
         return view('livewire.generatore-qr', [
             'prossimo' => $prossimo,
             'rimasti' => $this->rimastiOggi(),
             'svg' => $prossimo ? $generatore->svg($prossimo, $titolo, $logoDataUri, $colore) : null,
+            'codici' => $this->elenco($conFile),
+            'filePresenti' => array_fill_keys($conFile, true),
+            'totaleCodici' => $totale,
+            'codiciStampati' => $stampati,
+            'codiciSenzaFile' => $totale - $stampati,
         ]);
+    }
+
+    /** @param  array<int, string>  $conFile */
+    private function elenco(array $conFile): LengthAwarePaginator
+    {
+        $cerca = trim($this->cerca);
+        $like = '%'.$cerca.'%';
+        $statoFile = in_array($this->statoFile, ['stampati', 'assenti'], true) ? $this->statoFile : 'tutti';
+        $assegnazione = in_array($this->assegnazione, ['liberi', 'assegnati'], true) ? $this->assegnazione : 'tutti';
+
+        return Codice::query()
+            ->with([
+                'sede:id,descrizione,id_cliente',
+                'sede.cliente:id,ragione_sociale',
+                'postazione:id,titolo,id_sede,id_cliente',
+                'postazione.cliente:id,ragione_sociale',
+                'postazione.sede:id,descrizione,id_cliente',
+                'postazione.sede.cliente:id,ragione_sociale',
+            ])
+            ->when($statoFile === 'stampati', fn ($query) => $query->whereIn('codice', $conFile))
+            ->when($statoFile === 'assenti' && $conFile !== [], fn ($query) => $query->whereNotIn('codice', $conFile))
+            ->when($assegnazione === 'liberi', fn ($query) => $query->where('stato', Codice::CREATO))
+            ->when($assegnazione === 'assegnati', fn ($query) => $query->where('stato', Codice::ATTIVO))
+            ->when($cerca !== '', function ($query) use ($like): void {
+                $query->where(function ($query) use ($like): void {
+                    $query->where('codice', 'like', $like)
+                        ->orWhereHas('sede', function ($query) use ($like): void {
+                            $query->where('descrizione', 'like', $like)
+                                ->orWhereHas('cliente', fn ($query) => $query->where('ragione_sociale', 'like', $like));
+                        })
+                        ->orWhereHas('postazione', function ($query) use ($like): void {
+                            $query->where('titolo', 'like', $like)
+                                ->orWhereHas('sede', fn ($query) => $query->where('descrizione', 'like', $like))
+                                ->orWhereHas('cliente', fn ($query) => $query->where('ragione_sociale', 'like', $like));
+                        });
+                });
+            })
+            ->orderByDesc('id')
+            ->paginate(25);
+    }
+
+    /** @return array<int, string> */
+    private function codiciConFile(): array
+    {
+        if ($this->filePresenti !== null) {
+            return $this->filePresenti;
+        }
+
+        $disco = Storage::disk(config('filesystems.files_disk'));
+        $cartella = trim(config('filesystems.private_paths.documenti'), '/').'/QrcodeText';
+
+        try {
+            $percorsi = $disco->files($cartella);
+        } catch (UnableToListContents $errore) {
+            if ($disco->directoryExists($cartella)) {
+                throw $errore;
+            }
+
+            $percorsi = [];
+        }
+
+        $this->filePresenti = array_map(
+            fn (string $percorso): string => pathinfo($percorso, PATHINFO_FILENAME),
+            $percorsi,
+        );
+
+        return $this->filePresenti;
     }
 
     private function chiaveGiorno(): string
