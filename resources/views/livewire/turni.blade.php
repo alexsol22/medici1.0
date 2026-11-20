@@ -244,7 +244,7 @@
                 <button wire:click="$set('vista', 'calendario')" class="rounded-lg px-3 py-1.5 text-sm font-semibold {{ $vista === 'calendario' ? 'bg-sky-500 text-white' : 'text-slate-600' }}">Calendario</button>
                 <button wire:click="$set('vista', 'lista')" class="rounded-lg px-3 py-1.5 text-sm font-semibold {{ $vista === 'lista' ? 'bg-sky-500 text-white' : 'text-slate-600' }}">Lista</button>
             </div>
-            @if ($staff) <button wire:click="nuovoInvio" class="btn-soft">✉ Invia turni</button> <button wire:click="nuovo" class="btn-primary">+ Nuovo turno</button> @endif
+            @if ($staff) <button wire:click="nuovoInvio" class="btn-invio">✉ Invia turni</button> <button wire:click="nuovo" class="btn-primary">+ Nuovo turno</button> @endif
             @if (auth()->user()->isOperatore())
                 <a href="{{ route('scansione', ['sostituzione' => 1]) }}" wire:navigate class="btn-primary">Sostituisci turno</a>
             @endif
@@ -493,9 +493,33 @@
     @if ($modalInvio)
         <x-ui.modal title="Invia turni agli operatori" close="chiudiInvio" wide>
             <form wire:submit="inviaTurni" class="grid gap-4 sm:grid-cols-2">
-                <x-ui.field label="Cliente" name="invio.cliente"><select wire:model="invio.cliente" class="input"><option value="">Tutti</option>@foreach ($clienti as $c)<option value="{{ $c->id }}">{{ $c->ragione_sociale }}</option>@endforeach</select></x-ui.field>
-                <x-ui.field label="Sede" name="invio.sede"><select wire:model="invio.sede" class="input"><option value="">Tutte</option>@foreach ($sediInvio as $s)<option value="{{ $s->id }}">{{ $s->descrizione }}</option>@endforeach</select></x-ui.field>
-                <x-ui.field label="Operatore" name="invio.operatore" class="sm:col-span-2"><select wire:model="invio.operatore" class="input"><option value="">Tutti</option>@foreach ($operatoriInvio as $o)<option value="{{ $o->id }}">{{ $o->nome_completo }}</option>@endforeach</select></x-ui.field>
+                <x-ui.field label="Cliente" name="invio.cliente">
+                    <div wire:key="invio-cliente">
+                        <x-select-ricerca
+                            model="invio.cliente"
+                            :options="$clienti->map(fn ($c) => ['id' => $c->id, 'label' => $c->ragione_sociale])->values()"
+                            placeholder="Tutti"
+                        />
+                    </div>
+                </x-ui.field>
+                <x-ui.field label="Sede" name="invio.sede">
+                    <div wire:key="invio-sede">
+                        <x-select-ricerca
+                            model="invio.sede"
+                            :options="$sediInvio->map(fn ($s) => ['id' => $s->id, 'label' => $s->descrizione])->values()"
+                            placeholder="Tutte"
+                        />
+                    </div>
+                </x-ui.field>
+                <x-ui.field label="Operatore" name="invio.operatore" class="sm:col-span-2">
+                    <div wire:key="invio-operatore">
+                        <x-select-ricerca
+                            model="invio.operatore"
+                            :options="$operatoriInvio->map(fn ($o) => ['id' => $o->id, 'label' => $o->nome_completo])->values()"
+                            placeholder="Tutti"
+                        />
+                    </div>
+                </x-ui.field>
                 <x-ui.field label="Turni dal" name="invio.inizio"><input type="date" wire:model="invio.inizio" class="input"></x-ui.field>
                 <x-ui.field label="Turni al" name="invio.fine"><input type="date" wire:model="invio.fine" class="input"></x-ui.field>
                 <x-ui.field label="Testo email" name="invio.testo" class="sm:col-span-2"><textarea wire:model="invio.testo" rows="3" class="input"></textarea></x-ui.field>
