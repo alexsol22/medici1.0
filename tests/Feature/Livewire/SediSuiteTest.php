@@ -617,6 +617,7 @@ class SediSuiteTest extends TestCase
         DB::table('_comuni')->insert(['id' => 1, 'comune' => 'Modena', 'sigla_provincia' => 'MO', 'id_provincia' => 1]);
 
         Livewire::actingAs($this->admin())->test(SedeForm::class, ['sede' => $s['sede']])
+            ->assertSee('readonly', false)
             ->set('f.cliente_id', $altro)
             ->set('f.descrizione', 'Rinominata')->set('f.indirizzo', 'Via Roma 1')->set('f.citta', 'Modena')->set('f.provincia', 'MO')
             ->set('f.lat', '44.5')->set('f.lng', '10.9')->set('f.distanza_max', 100)
@@ -630,6 +631,29 @@ class SediSuiteTest extends TestCase
         $this->assertSame('A', DB::table('tc_codici')->find($nuovoCodice)->stato);
         $this->assertSame('S', DB::table('tc_codici')->find($nuovoCodice)->tipo);
         $this->assertSame(1, DB::table('_tracking')->where('action', 'Aggiornamento dati sede Rinominata')->count());
+    }
+
+    public function test_new_sede_keeps_the_client_from_the_list(): void
+    {
+        $cliente = $this->cliente('Alpha Srl');
+        $altro = $this->cliente('Beta');
+        $codice = DB::table('tc_codici')->insertGetId(['codice' => 'ITALPOL*000124', 'stato' => 'C']);
+        DB::table('_comuni')->insert(['id' => 1, 'comune' => 'Modena', 'sigla_provincia' => 'MO', 'id_provincia' => 1]);
+
+        Livewire::withQueryParams(['cliente' => $cliente])
+            ->actingAs($this->admin())
+            ->test(SedeForm::class)
+            ->assertSee('readonly', false)
+            ->assertSee('Dalla mappa')
+            ->assertSee('Coordinate a mano')
+            ->assertSee('Alpha Srl')
+            ->set('f.cliente_id', $altro)
+            ->set('f.descrizione', 'Nuova')->set('f.indirizzo', 'Via Roma 1')->set('f.citta', 'Modena')->set('f.provincia', 'MO')
+            ->set('f.lat', '44.5')->set('f.lng', '10.9')
+            ->set('codiceSedeId', (string) $codice)
+            ->call('salva')->assertHasNoErrors();
+
+        $this->assertSame($cliente, (int) DB::table('tc_sedi')->value('id_cliente'));
     }
 
     public function test_create_assigns_selected_available_qr_codes_to_site_and_station(): void
@@ -819,9 +843,52 @@ class SediSuiteTest extends TestCase
             ->set('f.citta', 'Modena')->set('f.provincia', 'MO')->set('f.lat', '44.5')->set('f.lng', '10.9')
             ->set('f.distanza_max', 1)
             ->call('salva')
-            ->assertHasErrors(['f.distanza_max' => 'Il campo f.distanza max deve essere almeno 10.'])
+            ->assertHasErrors(['f.distanza_max' => 'Il campo raggio d\'azione deve essere almeno 10.'])
             ->assertDispatched('tab-errore', tab: 'posizione')
             ->assertSee("Raggio d'azione");
+
+        $this->assertSame(0, DB::table('tc_sedi')->count());
+    }
+
+    public function test_empty_address_shows_readable_errors_on_the_position_tab(): void
+    {
+        $cliente = $this->cliente();
+        $codice = DB::table('tc_codici')->insertGetId(['codice' => 'ITALPOL*000511', 'stato' => 'C']);
+
+        Livewire::actingAs($this->admin())->test(SedeForm::class)
+            ->set('codiceSedeId', (string) $codice)
+            ->set('f.cliente_id', $cliente)
+            ->set('f.descrizione', 'Sede senza posizione')
+            ->call('salva')
+            ->assertHasErrors([
+                'f.indirizzo' => 'Il campo indirizzo è obbligatorio.',
+                'f.citta' => 'Il campo città è obbligatorio.',
+                'f.provincia' => 'Il campo provincia è obbligatorio.',
+            ])
+            ->assertDispatched('tab-errore', tab: 'posizione')
+            ->assertSee('Il campo indirizzo è obbligatorio.')
+            ->assertSee('Il campo città è obbligatorio.')
+            ->assertSee('Il campo provincia è obbligatorio.')
+            ->assertDontSee('Il campo f.citta', false)
+            ->assertDontSee('Il campo f.provincia', false);
+
+        $this->assertSame(0, DB::table('tc_sedi')->count());
+    }
+
+    public function test_province_must_be_a_two_letter_code(): void
+    {
+        $cliente = $this->cliente();
+        $codice = DB::table('tc_codici')->insertGetId(['codice' => 'ITALPOL*000512', 'stato' => 'C']);
+        DB::table('_comuni')->insert(['id' => 1, 'comune' => 'Modena', 'sigla_provincia' => 'MO', 'id_provincia' => 1]);
+
+        Livewire::actingAs($this->admin())->test(SedeForm::class)
+            ->set('codiceSedeId', (string) $codice)
+            ->set('f.cliente_id', $cliente)->set('f.descrizione', 'Sede valida')->set('f.indirizzo', 'Via Roma 1')
+            ->set('f.citta', 'Modena')->set('f.provincia', 'Modena')->set('f.lat', '44.5')->set('f.lng', '10.9')
+            ->call('salva')
+            ->assertHasErrors(['f.provincia' => 'La provincia va indicata con la sigla di 2 lettere, per esempio MO.'])
+            ->assertSee('La provincia va indicata con la sigla di 2 lettere, per esempio MO.')
+            ->assertDispatched('tab-errore', tab: 'posizione');
 
         $this->assertSame(0, DB::table('tc_sedi')->count());
     }
@@ -993,6 +1060,36 @@ class SediSuiteTest extends TestCase
         $this->assertSame(10.93, (float) DB::table('tc_sedi')->value('lng'));
         Http::assertSent(fn ($r) => $r['address'] === 'Via Roma 1 41100 Modena');
         $this->assertNull(session('avviso'));
+    }
+
+    public function test_filling_the_address_clears_stale_required_errors_and_keeps_italian_messages(): void
+    {
+        $this->app->setLocale('en');
+        $cliente = $this->cliente();
+        $codice = DB::table('tc_codici')->insertGetId(['codice' => 'ITALPOL*000521', 'stato' => 'C']);
+        DB::table('_comuni')->insert(['id' => 1, 'comune' => 'Modena', 'sigla_provincia' => 'MO', 'id_provincia' => 1]);
+
+        Livewire::actingAs($this->admin())->test(SedeForm::class)
+            ->set('codiceSedeId', (string) $codice)
+            ->set('f.cliente_id', $cliente)
+            ->set('f.descrizione', 'Sede valida')
+            ->call('salva')
+            ->assertHasErrors([
+                'f.citta' => 'Il campo città è obbligatorio.',
+                'f.provincia' => 'Il campo provincia è obbligatorio.',
+            ])
+            ->assertSee('Il campo provincia è obbligatorio.')
+            ->assertDontSee('The f.provincia field is required.', false)
+            ->assertDontSee('The f.citta field is required.', false)
+            ->call('compilaPosizione', 'Via San Salvatore 10', '41121', 'Modena', 'Provincia di Modena', '44.6449413', '10.9239694')
+            ->assertSet('f.indirizzo', 'Via San Salvatore 10')
+            ->assertSet('f.citta', 'Modena')
+            ->assertSet('f.provincia', 'MO')
+            ->assertHasNoErrors(['f.citta', 'f.provincia', 'f.indirizzo'])
+            ->assertDontSee('Il campo provincia è obbligatorio.')
+            ->assertDontSee('Il campo città è obbligatorio.');
+
+        $this->assertSame(0, DB::table('tc_sedi')->count());
     }
 
     private function creaSchema(): void

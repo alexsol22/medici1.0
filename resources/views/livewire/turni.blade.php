@@ -443,6 +443,9 @@
                 <x-ui.field label="Ora inizio" name="f.ora_inizio"><input type="time" wire:model.live="f.ora_inizio" class="input"></x-ui.field>
                 <x-ui.field label="Data fine" name="f.data_fine"><input type="date" wire:model.live="f.data_fine" class="input"></x-ui.field>
                 <x-ui.field label="Ora fine" name="f.ora_fine"><input type="time" wire:model.live="f.ora_fine" class="input"></x-ui.field>
+                @if ($finePrimaDellInizio)
+                    <p class="rounded-xl bg-rose-50 p-3 text-sm text-rose-700 sm:col-span-2">La data e l'ora di fine devono essere successive a quelle di inizio. Il turno non viene salvato finché l'orario non è valido.</p>
+                @endif
                 <x-ui.field label="Operatore (solo disponibili)" name="f.operatore_id" class="sm:col-span-2">
                     <div wire:key="crea-turno-operatori-{{ $f['cliente_id'] }}-{{ $f['data_inizio'] }}-{{ $f['ora_inizio'] }}-{{ $f['data_fine'] }}-{{ $f['ora_fine'] }}">
                         <x-select-ricerca

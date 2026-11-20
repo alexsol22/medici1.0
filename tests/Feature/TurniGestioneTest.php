@@ -37,6 +37,7 @@ class TurniGestioneTest extends TestCase
             $table->string('codice')->nullable();
             $table->string('user')->nullable();
             $table->string('id_cliente')->nullable();
+            $table->float('costo_orario')->nullable();
         });
         Schema::create('tc_clienti', function (Blueprint $table): void {
             $table->increments('id');
@@ -94,6 +95,13 @@ class TurniGestioneTest extends TestCase
             $table->integer('ritardo')->nullable();
             $table->string('tipo')->nullable();
         });
+        foreach (['tc_operatori_preferiti', 'tc_operatori_escludi'] as $tabella) {
+            Schema::create($tabella, function (Blueprint $table): void {
+                $table->increments('id');
+                $table->unsignedInteger('id_cliente');
+                $table->unsignedInteger('id_operatore');
+            });
+        }
         Schema::create('tc_send_email', function (Blueprint $table): void {
             $table->integer('id')->nullable();
             $table->integer('code')->nullable();
@@ -387,5 +395,83 @@ class TurniGestioneTest extends TestCase
             ->assertSet('esitoInvio', 'Non sono stati trovati turni a cui inviare comunicazioni per sede, operatore, data indicate.');
 
         $this->assertSame(0, DB::table('tc_send_email')->count());
+    }
+
+    public function test_nuovo_turno_riprende_cliente_e_sede_gia_selezionati(): void
+    {
+        Livewire::actingAs(User::findOrFail(1))->test(Turni::class)
+            ->set('filtroSede', 1)
+            ->call('nuovo')
+            ->assertSet('modal', true)
+            ->assertSet('f.cliente_id', 1)
+            ->assertSet('f.sede_id', 1);
+    }
+
+    public function test_nuovo_turno_con_cliente_che_ha_una_sola_sede_la_compila(): void
+    {
+        Livewire::actingAs(User::findOrFail(1))->test(Turni::class)
+            ->set('filtroCliente', 2)
+            ->call('nuovo')
+            ->assertSet('f.cliente_id', 2)
+            ->assertSet('f.sede_id', 2);
+    }
+
+    public function test_nuovo_turno_con_piu_sedi_lascia_la_sede_da_scegliere(): void
+    {
+        DB::table('tc_sedi')->insert([
+            'id' => 3, 'id_cliente' => 1, 'citta_id' => 1, 'provincia_id' => 1, 'id_codice' => null,
+            'descrizione' => 'Sede Tre', 'indirizzo' => 'Via Tre 3', 'cap' => '10100', 'lat' => '45.0', 'lng' => '7.6',
+        ]);
+
+        Livewire::actingAs(User::findOrFail(1))->test(Turni::class)
+            ->set('filtroCliente', 1)
+            ->call('nuovo')
+            ->assertSet('f.cliente_id', 1)
+            ->assertSet('f.sede_id', '');
+    }
+
+    public function test_fine_antecedente_all_inizio_mostra_il_messaggio_e_non_crea_il_turno(): void
+    {
+        $this->app->setLocale('en');
+        $prima = DB::table('tc_turni')->count();
+
+        Livewire::actingAs(User::findOrFail(1))->test(Turni::class)
+            ->call('nuovo')
+            ->set('f.cliente_id', 1)
+            ->set('f.sede_id', 1)
+            ->set('f.data_inizio', '2026-11-10')
+            ->set('f.ora_inizio', '16:00')
+            ->set('f.data_fine', '2026-11-09')
+            ->set('f.ora_fine', '08:00')
+            ->assertSee('La data e l\'ora di fine devono essere successive a quelle di inizio.', false)
+            ->assertSee('Il turno non viene salvato finché l\'orario non è valido.', false)
+            ->assertSee('Mario Rossi')
+            ->assertSee('Luca Bianchi')
+            ->call('salva')
+            ->assertHasErrors(['f.data_fine' => 'La data e l\'ora di fine devono essere successive a quelle di inizio.'])
+            ->assertSet('modal', true)
+            ->assertDontSee('The f.operatore', false);
+
+        $this->assertSame($prima, DB::table('tc_turni')->count());
+    }
+
+    public function test_turno_senza_operatore_mostra_il_messaggio_in_italiano(): void
+    {
+        $this->app->setLocale('en');
+
+        Livewire::actingAs(User::findOrFail(1))->test(Turni::class)
+            ->call('nuovo')
+            ->set('f.cliente_id', 1)
+            ->set('f.sede_id', 1)
+            ->set('f.data_inizio', '2026-11-20')
+            ->set('f.ora_inizio', '08:00')
+            ->set('f.data_fine', '2026-11-20')
+            ->set('f.ora_fine', '16:00')
+            ->call('salva')
+            ->assertHasErrors(['f.operatore_id' => 'Seleziona un operatore.'])
+            ->assertSee('Seleziona un operatore.')
+            ->assertDontSee('field is required', false);
+
+        $this->assertSame(6, DB::table('tc_turni')->count());
     }
 }

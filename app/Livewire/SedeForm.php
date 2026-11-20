@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use LogicException;
@@ -26,6 +27,9 @@ class SedeForm extends Component
     use ConAccesso, WithFileUploads;
 
     public ?int $sedeId = null;
+
+    #[Locked]
+    public ?int $clienteId = null;
 
     public string $nomeCliente = '';
 
@@ -97,6 +101,30 @@ class SedeForm extends Component
             'postazioni.*.info.max' => 'Le informazioni della postazione sono troppo lunghe.',
             'immaginiPostazioni.*.image' => 'Carica un\'immagine per la postazione.',
             'immaginiPostazioni.*.max' => 'L\'immagine della postazione non può superare 4 MB.',
+            'f.provincia.size' => 'La provincia va indicata con la sigla di 2 lettere, per esempio MO.',
+            'f.cliente_id.required' => 'Il campo cliente è obbligatorio.',
+            'f.descrizione.required' => 'Il campo denominazione è obbligatorio.',
+            'f.indirizzo.required' => 'Il campo indirizzo è obbligatorio.',
+            'f.citta.required' => 'Il campo città è obbligatorio.',
+            'f.provincia.required' => 'Il campo provincia è obbligatorio.',
+            'f.distanza_max.required' => 'Il campo raggio d\'azione è obbligatorio.',
+            'f.distanza_max.integer' => 'Il campo raggio d\'azione deve essere un numero intero.',
+            'f.distanza_max.min' => 'Il campo raggio d\'azione deve essere almeno :min.',
+            'f.distanza_max.max' => 'Il campo raggio d\'azione non può superare :max.',
+            'codiceSedeId.required' => 'Il campo QR code è obbligatorio.',
+            'f.email.email' => 'Il campo email deve essere un indirizzo email valido.',
+            'f.lat.numeric' => 'Il campo latitudine deve essere un numero.',
+            'f.lng.numeric' => 'Il campo longitudine deve essere un numero.',
+            'f.lat.between' => 'Il campo latitudine non è valido.',
+            'f.lng.between' => 'Il campo longitudine non è valido.',
+            'f.inizio_contratto.date' => 'La data di inizio contratto non è valida.',
+            'f.fine_contratto.date' => 'La data di fine contratto non è valida.',
+            'f.fine_contratto.after_or_equal' => 'La fine contratto deve essere uguale o successiva all\'inizio.',
+            'foto.image' => 'Carica un\'immagine per la sede.',
+            'foto.max' => 'L\'immagine della sede non può superare 4 MB.',
+            'ore.*.integer' => 'Le ore richieste devono essere un numero intero.',
+            'ore.*.min' => 'Le ore richieste non possono essere negative.',
+            'ore.*.max' => 'Le ore richieste non possono superare 24.',
         ];
     }
 
@@ -109,6 +137,14 @@ class SedeForm extends Component
             'postazioni.*.minuti' => 'minuti di passaggio',
             'postazioni.*.info' => 'informazioni della postazione',
             'immaginiPostazioni.*' => 'immagine della postazione',
+            'f.cliente_id' => 'cliente',
+            'f.descrizione' => 'denominazione',
+            'f.citta' => 'città',
+            'f.provincia' => 'provincia',
+            'f.lat' => 'latitudine',
+            'f.lng' => 'longitudine',
+            'f.distanza_max' => 'raggio d\'azione',
+            'codiceSedeId' => 'QR code',
         ];
     }
 
@@ -119,7 +155,11 @@ class SedeForm extends Component
         if ($sede === null) {
             $this->f = array_fill_keys(self::CAMPI, '');
             $this->f['distanza_max'] = 100;
-            $this->f['cliente_id'] = request()->integer('cliente') ?: '';
+            $this->clienteId = request()->integer('cliente') ?: null;
+            $this->f['cliente_id'] = $this->clienteId ?? '';
+            $this->nomeCliente = (string) ($this->clienteId
+                ? $this->clientiVisibili()->whereKey($this->clienteId)->value('ragione_sociale')
+                : '');
             $this->f['colore'] = '#1d3e67';
 
             return;
@@ -127,6 +167,7 @@ class SedeForm extends Component
 
         $s = $this->sediVisibili()->with(['cliente', 'postazioni'])->findOrFail($sede);
         $this->sedeId = $s->id;
+        $this->clienteId = (int) $s->id_cliente;
         $this->nomeCliente = (string) $s->cliente?->ragione_sociale;
         $this->nomeSede = $s->descrizione;
         $this->f = collect(self::CAMPI)->mapWithKeys(fn ($k) => [$k => $s->$k ?? ''])->all();
@@ -152,6 +193,57 @@ class SedeForm extends Component
         $this->ore = collect(range(1, 7))->mapWithKeys(fn ($g) => [$g => $s->ore_richieste[$g] ?? ''])->all();
     }
 
+    public function updated(string $proprieta): void
+    {
+        if (! str_starts_with($proprieta, 'f.')) {
+            return;
+        }
+
+        $chiave = substr($proprieta, 2);
+        if (filled($this->f[$chiave] ?? null)) {
+            $this->resetValidation($proprieta);
+        }
+    }
+
+    public function compilaPosizione(string $indirizzo, string $cap, string $citta, string $provincia, string $lat, string $lng): void
+    {
+        $this->soloStaff();
+        $this->scriviSeValorizzato('indirizzo', $indirizzo);
+        $this->scriviSeValorizzato('cap', $cap);
+        $this->scriviSeValorizzato('citta', $citta);
+        $this->scriviSeValorizzato('provincia', $this->siglaProvincia($provincia, $citta));
+        $this->scriviSeValorizzato('lat', $lat);
+        $this->scriviSeValorizzato('lng', $lng);
+
+        foreach (['indirizzo', 'cap', 'citta', 'provincia', 'lat', 'lng'] as $campo) {
+            if (filled($this->f[$campo] ?? null)) {
+                $this->resetValidation('f.'.$campo);
+            }
+        }
+    }
+
+    private function scriviSeValorizzato(string $campo, string $valore): void
+    {
+        $valore = trim($valore);
+        if ($valore !== '') {
+            $this->f[$campo] = $valore;
+        }
+    }
+
+    private function siglaProvincia(string $provincia, string $citta): string
+    {
+        $sigla = strtoupper(trim($provincia));
+        if (strlen($sigla) === 2) {
+            return $sigla;
+        }
+
+        $daComune = $citta !== ''
+            ? Comune::query()->where('comune', trim($citta))->value('sigla_provincia')
+            : null;
+
+        return is_string($daComune) && strlen($daComune) === 2 ? strtoupper($daComune) : $sigla;
+    }
+
     public function aggiungiPostazione(): void
     {
         $this->postazioni['n'.Str::random(6)] = ['id' => null, 'codice_id' => '', 'titolo' => '', 'passaggi' => '', 'minuti' => '', 'info' => '', 'file' => null];
@@ -169,6 +261,12 @@ class SedeForm extends Component
     public function salva()
     {
         $this->soloStaff();
+        // Il cliente arriva dall'elenco (creazione) o dalla sede (modifica): le cartelle sono per cliente.
+        if ($this->sedeId) {
+            $this->f['cliente_id'] = $this->sediVisibili()->findOrFail($this->sedeId)->id_cliente;
+        } elseif ($this->clienteId) {
+            $this->f['cliente_id'] = $this->clienteId;
+        }
         try {
             $this->validate();
             $this->validaCodiciSelezionati();
@@ -176,10 +274,6 @@ class SedeForm extends Component
             $this->dispatch('tab-errore', tab: $this->tabConErrori(array_keys($e->errors())));
 
             throw $e;
-        }
-        // Come nel vecchio: il cliente di una sede esistente non cambia (le cartelle sono per cliente).
-        if ($this->sedeId) {
-            $this->f['cliente_id'] = $this->sediVisibili()->findOrFail($this->sedeId)->id_cliente;
         }
         $this->clientiVisibili()->findOrFail($this->f['cliente_id']);
 
@@ -507,8 +601,9 @@ class SedeForm extends Component
 
     public function render()
     {
-        $clienti = $this->clientiVisibili()->orderBy('ragione_sociale')->get(['id', 'ragione_sociale']);
-        $nomeCliente = $clienti->firstWhere('id', (int) ($this->f['cliente_id'] ?? 0))?->ragione_sociale ?? $this->nomeCliente;
+        $nomeCliente = $this->nomeCliente !== ''
+            ? $this->nomeCliente
+            : (string) ($this->clientiVisibili()->whereKey((int) ($this->f['cliente_id'] ?? 0))->value('ragione_sociale') ?? '');
         $sede = $this->sedeId
             ? $this->sediVisibili()->with('postazioni')->findOrFail($this->sedeId)
             : null;
@@ -521,7 +616,6 @@ class SedeForm extends Component
         });
 
         return view('livewire.sede-form', [
-            'clienti' => $clienti,
             'nomeCliente' => $nomeCliente,
             'codiciSede' => $this->codiciSelezionabili($sede?->id_codice),
             'codiciPostazioni' => $codiciPostazioni,

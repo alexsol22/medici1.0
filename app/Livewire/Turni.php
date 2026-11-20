@@ -252,8 +252,11 @@ class Turni extends Component
     public function nuovo(): void
     {
         $this->soloStaff();
+        $contesto = $this->contestoTurno();
         $this->f = [
-            'cliente_id' => '', 'sede_id' => '', 'operatore_id' => '',
+            'cliente_id' => $contesto['cliente_id'],
+            'sede_id' => $contesto['sede_id'],
+            'operatore_id' => '',
             'data_inizio' => today()->toDateString(), 'ora_inizio' => '08:00',
             'data_fine' => today()->toDateString(), 'ora_fine' => '16:00',
             'ripeti_fino' => '', 'note' => '',
@@ -262,6 +265,29 @@ class Turni extends Component
         $this->esito = null;
         $this->resetValidation();
         $this->modal = true;
+    }
+
+    /**
+     * Cliente e sede già filtrati in agenda, così il nuovo turno non li richiede di nuovo.
+     *
+     * @return array{cliente_id: int|string, sede_id: int|string}
+     */
+    private function contestoTurno(): array
+    {
+        $sede = $this->filtroSede
+            ? $this->sediVisibili()->find($this->filtroSede)
+            : null;
+        $clienteId = $sede?->id_cliente ?: ($this->filtroCliente ?: null);
+
+        if (! $sede && $clienteId) {
+            $sedi = $this->sediVisibili()->where('id_cliente', $clienteId)->limit(2)->get(['id']);
+            $sede = $sedi->count() === 1 ? $sedi->first() : null;
+        }
+
+        return [
+            'cliente_id' => $clienteId ?: '',
+            'sede_id' => $sede?->id ?: '',
+        ];
     }
 
     public function updatedFClienteId(): void
@@ -286,23 +312,47 @@ class Turni extends Component
     {
         $this->soloStaff();
         $this->validate([
-            'f.cliente_id' => 'required|exists:tc_clienti,id',
-            'f.sede_id' => 'required|exists:tc_sedi,id',
-            'f.operatore_id' => 'required|exists:tc_admin,id',
             'f.data_inizio' => 'required|date',
             'f.data_fine' => 'required|date',
             'f.ora_inizio' => 'required|date_format:H:i',
             'f.ora_fine' => 'required|date_format:H:i',
-            'f.ripeti_fino' => 'nullable|date|after:f.data_inizio',
+        ], [
+            'f.data_inizio.required' => 'Indica la data di inizio.',
+            'f.data_fine.required' => 'Indica la data di fine.',
+            'f.ora_inizio.required' => 'Indica l\'ora di inizio.',
+            'f.ora_fine.required' => 'Indica l\'ora di fine.',
+            'f.data_inizio.date' => 'La data di inizio non è valida.',
+            'f.data_fine.date' => 'La data di fine non è valida.',
+            'f.ora_inizio.date_format' => 'L\'ora di inizio non è valida.',
+            'f.ora_fine.date_format' => 'L\'ora di fine non è valida.',
         ]);
 
-        $sede = $this->sediVisibili()->where('id_cliente', $this->f['cliente_id'])->findOrFail($this->f['sede_id']);
-        [$inizio, $fine] = $this->intervallo();
-        if ($fine->lte($inizio)) {
-            $this->addError('f.ora_fine', 'La fine deve essere successiva all\'inizio.');
+        $intervallo = $this->intervallo();
+        if ($intervallo === null || $intervallo[1]->lte($intervallo[0])) {
+            $this->addError('f.data_fine', 'La data e l\'ora di fine devono essere successive a quelle di inizio.');
+            $this->addError('f.ora_fine', 'La data e l\'ora di fine devono essere successive a quelle di inizio.');
 
             return;
         }
+
+        $this->validate([
+            'f.cliente_id' => 'required|exists:tc_clienti,id',
+            'f.sede_id' => 'required|exists:tc_sedi,id',
+            'f.operatore_id' => 'required|exists:tc_admin,id',
+            'f.ripeti_fino' => 'nullable|date|after:f.data_inizio',
+        ], [
+            'f.cliente_id.required' => 'Seleziona il cliente.',
+            'f.sede_id.required' => 'Seleziona la sede.',
+            'f.operatore_id.required' => 'Seleziona un operatore.',
+            'f.cliente_id.exists' => 'Il cliente selezionato non è valido.',
+            'f.sede_id.exists' => 'La sede selezionata non è valida.',
+            'f.operatore_id.exists' => 'L\'operatore selezionato non è valido.',
+            'f.ripeti_fino.date' => 'La data di ripetizione non è valida.',
+            'f.ripeti_fino.after' => 'La ripetizione deve terminare dopo la data di inizio.',
+        ]);
+
+        $sede = $this->sediVisibili()->where('id_cliente', $this->f['cliente_id'])->findOrFail($this->f['sede_id']);
+        [$inizio, $fine] = $intervallo;
 
         $ripetiFino = $this->f['ripeti_fino'] ? Carbon::parse($this->f['ripeti_fino']) : null;
         $creati = 0;
@@ -711,11 +761,16 @@ class Turni extends Component
 
         $disponibili = collect();
         $sediForm = collect();
+        $finePrimaDellInizio = false;
         if ($this->modal) {
             $sediForm = $this->sediVisibili()->where('id_cliente', $this->f['cliente_id'] ?: 0)->orderBy('descrizione')->get(['id', 'descrizione']);
             $intervallo = $this->intervallo();
-            if ($intervallo !== null && $intervallo[1]->gt($intervallo[0])) {
-                $disponibili = $piano->operatoriDisponibili($intervallo[0], $intervallo[1], $this->f['cliente_id'] ?: null);
+            $finePrimaDellInizio = $intervallo !== null && $intervallo[1]->lte($intervallo[0]);
+            if ($intervallo !== null && $intervallo[0]->ne($intervallo[1])) {
+                [$da, $a] = $intervallo[0]->lt($intervallo[1])
+                    ? [$intervallo[0], $intervallo[1]]
+                    : [$intervallo[1], $intervallo[0]];
+                $disponibili = $piano->operatoriDisponibili($da, $a, $this->f['cliente_id'] ?: null);
             }
         }
 
@@ -775,6 +830,7 @@ class Turni extends Component
             'clienteSelezionato' => $clienti->firstWhere('id', $this->filtroCliente),
             'sediForm' => $sediForm,
             'disponibili' => $disponibili,
+            'finePrimaDellInizio' => $finePrimaDellInizio,
             'giorniSettimana' => [1 => 'Lun', 2 => 'Mar', 3 => 'Mer', 4 => 'Gio', 5 => 'Ven', 6 => 'Sab', 7 => 'Dom'],
             'turnoDaEliminare' => $turnoDaEliminare,
         ]);

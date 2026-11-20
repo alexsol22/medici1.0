@@ -44,13 +44,8 @@
                     />
                     <p class="mt-1 text-xs text-slate-500">Elenco dei codici liberi, in ordine di numerazione. Se non ce ne sono, «CODICE DA GENERARE» assegna il numero successivo.</p>
                 </x-ui.field>
-                <x-ui.field label="Cliente *" name="f.cliente_id">
-                    <x-select-ricerca
-                        model="f.cliente_id"
-                        :options="$clienti->map(fn ($c) => ['id' => (string) $c->id, 'label' => $c->ragione_sociale])->values()"
-                        placeholder="— Seleziona —"
-                        :disabled="(bool) $sedeId"
-                    />
+                <x-ui.field label="Cliente" name="f.cliente_id">
+                    <input value="{{ $nomeCliente }}" class="input bg-slate-100 text-slate-600" readonly>
                 </x-ui.field>
                 <div class="grid grid-cols-[1fr_auto] items-start gap-3">
                     <x-ui.field label="Denominazione *" name="f.descrizione"><input wire:model="f.descrizione" class="input"></x-ui.field>
@@ -79,13 +74,30 @@
             </div>
         </section>
 
-        <section x-show="tab === 'posizione'" x-cloak class="card p-5 sm:p-6">
-            <h2 class="mb-4 text-base font-bold text-slate-800">Posizione</h2>
+        <section x-show="tab === 'posizione'" x-cloak x-data="{ modo: 'mappa' }" class="card p-5 sm:p-6">
+            <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 class="text-base font-bold text-slate-800">Posizione</h2>
+                    <p class="mt-1 text-sm text-slate-600" x-show="modo === 'mappa'">Le coordinate le scrive la mappa.</p>
+                    <p class="mt-1 text-sm text-slate-600" x-show="modo === 'manuale'" x-cloak>Zona senza indirizzo su Google: scrivi tu latitudine e longitudine.</p>
+                </div>
+                <div class="ml-auto shrink-0">
+                    <p class="mb-1 text-right text-sm font-semibold text-slate-800">Indica la posizione</p>
+                    <div class="inline-flex rounded-xl bg-sky-50 p-1 ring-1 ring-sky-200" role="group" aria-label="Indica la posizione">
+                        <button type="button" @click="modo = 'mappa'; $dispatch('tab-posizione')"
+                            :class="modo === 'mappa' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-800 hover:bg-white'"
+                            class="rounded-lg px-3 py-1.5 text-sm font-semibold">Dalla mappa</button>
+                        <button type="button" @click="modo = 'manuale'"
+                            :class="modo === 'manuale' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-800 hover:bg-white'"
+                            class="rounded-lg px-3 py-1.5 text-sm font-semibold">Coordinate a mano</button>
+                    </div>
+                </div>
+            </div>
             <div class="grid gap-5 lg:grid-cols-5">
-                <div class="lg:col-span-3">
+                <div class="lg:col-span-3" x-show="modo === 'mappa'">
                 <div wire:ignore @tab-posizione.window="setTimeout(() => { if (mappa) { google.maps.event.trigger(mappa, 'resize'); const c = marker.getPosition(); if (c) { mappa.setCenter(c); } } }, 50)"
                     x-data="{
-                        mappa: null, marker: null, cerchio: null, errore: false, suggerimenti: [], timer: null, token: null,
+                        mappa: null, marker: null, cerchio: null, errore: false, suggerimenti: [], timer: null, token: null, ultimaLat: '', ultimaLng: '',
                         async init() {
                             const key = @js(config('services.google_maps.key'));
                             if (!key) { this.errore = true; return; }
@@ -145,24 +157,24 @@
                             this.marker.setPosition(pos);
                             this.cerchio.setCenter(pos);
                             this.mappa.panTo(pos);
-                            $wire.set('f.lat', pos.lat().toFixed(7));
-                            $wire.set('f.lng', pos.lng().toFixed(7));
+                            this.ultimaLat = pos.lat().toFixed(7);
+                            this.ultimaLng = pos.lng().toFixed(7);
                             if (inverso) {
+                                $wire.compilaPosizione('', '', '', '', this.ultimaLat, this.ultimaLng);
                                 new google.maps.Geocoder().geocode({ location: pos }, (r, st) => { if (st === 'OK' && r[0]) { this.indirizzo(r[0].address_components); } });
                             }
                         },
                         indirizzo(comp) {
                             const c = (t, n = 'long_name') => (comp.find(a => a.types.includes(t)) || {})[n] || '';
                             const via = (c('route') + ' ' + c('street_number')).trim();
-                            if (via) { $wire.set('f.indirizzo', via); const i = document.getElementById('sede-indirizzo'); if (i) { i.value = via; } }
-                            $wire.set('f.cap', c('postal_code'));
-                            $wire.set('f.citta', c('locality') || c('administrative_area_level_3'));
-                            $wire.set('f.provincia', c('administrative_area_level_2', 'short_name'));
+                            const campo = document.getElementById('sede-indirizzo');
+                            if (via && campo) { campo.value = via; }
+                            $wire.compilaPosizione(via, c('postal_code'), c('locality') || c('administrative_area_level_3'), c('administrative_area_level_2', 'short_name'), this.ultimaLat, this.ultimaLng);
                         }
                     }">
-                    <label class="label">Indirizzo</label>
+                    <label class="label">Indirizzo *</label>
                     <div class="relative" @click.outside="suggerimenti = []">
-                        <input id="sede-indirizzo" value="{{ $f['indirizzo'] ?? '' }}" @input="$wire.set('f.indirizzo', $event.target.value, false); cerca()" class="input" autocomplete="off" placeholder="Inizia a scrivere l'indirizzo...">
+                        <input id="sede-indirizzo" value="{{ $f['indirizzo'] ?? '' }}" @keydown.enter.prevent @input="$wire.set('f.indirizzo', $event.target.value, false); cerca()" class="input" autocomplete="off" placeholder="Inizia a scrivere l'indirizzo...">
                         <ul x-show="suggerimenti.length" x-cloak class="absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-sky-100">
                             <template x-for="p in suggerimenti" :key="p.placeId">
                                 <li><button type="button" @click="scelta(p)" class="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-sky-50" x-text="p.text.text"></button></li>
@@ -170,17 +182,26 @@
                         </ul>
                     </div>
                     <div x-ref="mappa" x-show="!errore" class="mt-3" style="height:22rem;width:100%;border-radius:.75rem;border:1px solid #e0f2fe"></div>
-                    <p x-show="!errore" class="mt-1 text-xs text-slate-500">Scegli un suggerimento, clicca sulla mappa o trascina il marker per la posizione. Trascina il punto sul bordo del cerchio per impostare il raggio d'azione.</p>
+                    <p x-show="!errore" class="mt-1 text-xs text-slate-500">Scegli un suggerimento, clicca sulla mappa o trascina il marker. Latitudine e longitudine, qui a fianco, restano in sola lettura. Trascina il bordo del cerchio per il raggio.</p>
                     <p x-show="errore" x-cloak class="rounded-lg bg-amber-50 p-3 text-xs text-amber-700">Mappa non disponibile: inserisci latitudine e longitudine manualmente.</p>
                 </div>
+                @error('f.indirizzo') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
+                </div>
+                <div class="lg:col-span-3" x-show="modo === 'manuale'" x-cloak>
+                    <x-ui.field label="Indirizzo *" name="f.indirizzo">
+                        <input wire:model="f.indirizzo" class="input" placeholder="Via e numero civico">
+                    </x-ui.field>
+                    <p class="mt-2 text-xs text-slate-500">Scrivi la via anche se Google non la propone. Latitudine e longitudine si inseriscono nei campi qui a fianco.</p>
                 </div>
                 <div class="grid content-start gap-4 sm:grid-cols-2 lg:col-span-2">
                     <x-ui.field label="CAP" name="f.cap"><input wire:model="f.cap" class="input"></x-ui.field>
-                    <x-ui.field label="Provincia" name="f.provincia"><input wire:model="f.provincia" class="input" maxlength="2"></x-ui.field>
-                    <x-ui.field label="Città" name="f.citta" class="sm:col-span-2"><input wire:model="f.citta" class="input"></x-ui.field>
-                    <x-ui.field label="Latitudine" name="f.lat"><input wire:model="f.lat" class="input"></x-ui.field>
-                    <x-ui.field label="Longitudine" name="f.lng"><input wire:model="f.lng" class="input"></x-ui.field>
-                    <x-ui.field label="Raggio d'azione" name="f.distanza_max" class="sm:col-span-2">
+                    <x-ui.field label="Provincia *" name="f.provincia"><input wire:model="f.provincia" class="input" maxlength="2"></x-ui.field>
+                    <x-ui.field label="Città *" name="f.citta" class="sm:col-span-2"><input wire:model="f.citta" class="input"></x-ui.field>
+                    <x-ui.field label="Latitudine" name="f.lat"><input wire:model="f.lat" class="input" inputmode="decimal" placeholder="44.6471000" x-bind:readonly="modo === 'mappa'" x-bind:class="modo === 'mappa' ? 'bg-slate-100 text-slate-600' : ''"></x-ui.field>
+                    <x-ui.field label="Longitudine" name="f.lng"><input wire:model="f.lng" class="input" inputmode="decimal" placeholder="10.9252000" x-bind:readonly="modo === 'mappa'" x-bind:class="modo === 'mappa' ? 'bg-slate-100 text-slate-600' : ''"></x-ui.field>
+                    <p class="text-xs text-slate-500 sm:col-span-2" x-show="modo === 'mappa'">Compilate dalla mappa. Per scriverle tu, scegli «Coordinate a mano».</p>
+                    <p class="text-xs text-slate-500 sm:col-span-2" x-show="modo === 'manuale'" x-cloak>Gradi decimali, con il punto. Esempio: latitudine 44.6471000, longitudine 10.9252000.</p>
+                    <x-ui.field label="Raggio d'azione *" name="f.distanza_max" class="sm:col-span-2">
                         <div class="relative"><input type="number" wire:model.live.debounce.400ms="f.distanza_max" class="input !pr-10" min="10" max="5000"><span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-slate-400">m</span></div>
                     </x-ui.field>
                 </div>
