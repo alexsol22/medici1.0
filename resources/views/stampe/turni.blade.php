@@ -21,7 +21,7 @@
 <body>
     <table class="intestazione">
         <tr>
-            <td style="width: 56px"><img src="{{ $logo }}" alt="" width="48" height="48"></td>
+            <td style="width: 56px">@if ($logo)<img src="{{ $logo }}" alt="" width="48" height="48">@endif</td>
             <td>
                 <p class="marca">{{ $azienda?->app }}</p>
                 <p class="medio">{{ $azienda?->societa_indirizzo }}</p>

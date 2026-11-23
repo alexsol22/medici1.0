@@ -203,7 +203,7 @@ class DownloadController extends Controller
         $html = view('stampe.turni', [
             'azienda' => Config::first(),
             'turni' => $turni,
-            'logo' => public_path('brand/icon-192.png'),
+            'logo' => $this->logoPdf(),
         ])->render();
 
         $opzioni = new Options;
@@ -225,6 +225,24 @@ class DownloadController extends Controller
             'turni-'.now()->format('Ymd').'.pdf',
             ['Content-Type' => 'application/pdf'],
         );
+    }
+
+    /**
+     * Data URI: Dompdf altrimenti passa a ImageMagick un URL file:// che in produzione non apre.
+     */
+    private function logoPdf(): ?string
+    {
+        $percorso = public_path('brand/icon-192.png');
+        if (! is_file($percorso)) {
+            return null;
+        }
+
+        $contenuto = file_get_contents($percorso);
+        if ($contenuto === false) {
+            return null;
+        }
+
+        return 'data:image/png;base64,'.base64_encode($contenuto);
     }
 
     /** @return Collection<int, int> */
