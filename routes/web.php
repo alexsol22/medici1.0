@@ -104,6 +104,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/postazioni/{postazione}/immagine', [DownloadController::class, 'immaginePostazione'])->name('postazioni.immagine');
         Route::get('/postazioni/{postazione}/qrcode', [DownloadController::class, 'qrPostazione'])->name('postazioni.qrcode');
         Route::get('/turni', Livewire\Turni::class)->name('turni');
+        Route::get('/turni/stampa', [DownloadController::class, 'stampaTurni'])->name('turni.stampa');
         Route::get('/presenze', Livewire\Presenze::class)->name('presenze');
         Route::get('/presenze/clienti', Livewire\Presenze::class)->name('presenze.clienti');
         Route::get('/presenze/operatori', Livewire\Presenze::class)->name('presenze.operatori');

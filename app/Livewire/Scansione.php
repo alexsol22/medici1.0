@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Legacy\Turno;
 use App\Services\Timbratura;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -56,11 +57,30 @@ class Scansione extends Component
 
         return view('livewire.scansione', [
             'turno' => $turno,
-            'fotoSede' => $turno?->sede?->haImmagineTimbratura() ? route('scansione.foto') : null,
+            'fotoSede' => $this->urlFotoSede($turno),
             'presenze' => $turno ? $turno->presenze()->with('postazione')->orderBy('data')->orderBy('orario')->get() : collect(),
             'prossimi' => Turno::with('sede')->where('id_operatore', $user->id)
                 ->whereRaw("CONCAT(data_inizio,' ',ora_inizio) > ?", [now()->format('Y-m-d H:i')])
                 ->orderBy('data_inizio')->orderBy('ora_inizio')->limit(5)->get(),
+        ]);
+    }
+
+    /**
+     * L'endpoint è unico, quindi senza un identificativo del file il browser
+     * riusa la foto della sede precedente per tutta la sessione.
+     */
+    private function urlFotoSede(?Turno $turno): ?string
+    {
+        $percorso = $turno?->sede?->percorsoImmagineTimbratura();
+
+        if ($percorso === null) {
+            return null;
+        }
+
+        $disco = Storage::disk(config('filesystems.files_disk'));
+
+        return route('scansione.foto', [
+            'v' => $disco->lastModified($percorso).'-'.$disco->size($percorso).'-'.substr(sha1($percorso), 0, 12),
         ]);
     }
 }

@@ -9,7 +9,7 @@
         <div x-show="!sostituzione">
         @if ($turno)
             @php $inCorso = $turno->stato === 'I'; @endphp
-            <div x-data="{ fotoDisponibile: @js((bool) $fotoSede) }" class="flex items-center justify-center bg-sky-50">
+            <div wire:key="foto-turno-{{ $turno->id }}-{{ $fotoSede ?? 'vuota' }}" x-data="{ fotoDisponibile: @js((bool) $fotoSede) }" class="flex items-center justify-center bg-sky-50">
                 @if ($fotoSede)
                     <img x-show="fotoDisponibile" x-on:error="fotoDisponibile = false" src="{{ $fotoSede }}" alt="Foto di {{ $turno->sede->descrizione }}" class="block max-h-64 w-auto max-w-full object-contain sm:max-h-80">
                 @endif

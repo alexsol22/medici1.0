@@ -155,6 +155,23 @@ class TurniGestioneTest extends TestCase
             ->set('vista', 'lista')->set('da', '2026-11-01')->set('a', '2026-11-30');
     }
 
+    private function contenutoPdf(string $pdf): string
+    {
+        $this->assertStringStartsWith('%PDF', $pdf);
+
+        $parti = [];
+        if (preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $pdf, $corrispondenze)) {
+            foreach ($corrispondenze[1] as $flusso) {
+                $testo = @gzuncompress($flusso);
+                if (is_string($testo)) {
+                    $parti[] = str_replace(['\\(', '\\)', "\0"], ['(', ')', ''], $testo);
+                }
+            }
+        }
+
+        return implode("\n", $parti);
+    }
+
     private function idsLista($componente): array
     {
         return $componente->viewData('turni')->pluck('id')->sort()->values()->all();
@@ -274,6 +291,74 @@ class TurniGestioneTest extends TestCase
             ->assertSee('Nessun turno selezionato.');
 
         $this->assertSame(6, DB::table('tc_turni')->count());
+    }
+
+    public function test_lista_offre_la_stampa_pdf_dei_turni_selezionati(): void
+    {
+        $this->lista()
+            ->assertSee('Scarica PDF')
+            ->assertDontSee(route('turni.stampa'));
+
+        $this->lista()->set('selezionati', ['1', 2])
+            ->assertSee(route('turni.stampa', ['ids' => [1, 2]]));
+    }
+
+    public function test_stampa_pdf_include_solo_i_turni_selezionati_visibili(): void
+    {
+        Schema::create('tc_config', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->string('app')->nullable();
+        });
+        DB::table('tc_config')->insert(['id' => 1, 'app' => 'Omnia Control']);
+        DB::table('tc_clienti')->insert(['id' => 9, 'ragione_sociale' => 'Cliente Test', 'isTest' => 1]);
+        DB::table('tc_sedi')->insert([
+            'id' => 9, 'id_cliente' => 9, 'citta_id' => 1, 'provincia_id' => 1, 'id_codice' => null,
+            'descrizione' => 'Sede Nascosta', 'indirizzo' => 'Via Test 9', 'cap' => '10100', 'lat' => '45.0', 'lng' => '7.6',
+        ]);
+        DB::table('tc_sedi')->where('id', 1)->update(['descrizione' => 'Sede <script>alert(1)</script>']);
+        DB::table('tc_turni')->insert([
+            'id' => 9, 'id_cliente' => 9, 'id_sede' => 9, 'id_operatore' => 2,
+            'data_inizio' => '2026-11-06', 'ora_inizio' => '08:00', 'data_fine' => '2026-11-06', 'ora_fine' => '10:00',
+            'ore' => 2, 'ore_lavorate' => null, 'stato' => 'P', 'note_operatore' => null,
+        ]);
+
+        $risposta = $this->actingAs(User::findOrFail(1))
+            ->get(route('turni.stampa', ['ids' => [1, 9, 'abc']]));
+
+        $risposta->assertOk()
+            ->assertDownload('turni-20261106.pdf');
+
+        $pdf = $risposta->streamedContent();
+        $testo = $this->contenutoPdf($pdf);
+        $this->assertStringContainsString('Turni selezionati (1)', $testo);
+        $this->assertStringContainsString('Cliente Uno', $testo);
+        $this->assertStringContainsString('Sede <script>alert(1)</script>', $testo);
+        $this->assertStringContainsString('Mario Rossi', $testo);
+        $this->assertStringContainsString('06/11/2026 08:00', $testo);
+        $this->assertStringContainsString('Non eseguito', $testo);
+        $this->assertStringContainsString('/Width 192', $pdf);
+        $this->assertStringContainsString('/Height 192', $pdf);
+        $this->assertStringNotContainsString('logo-security-scanner', $pdf);
+        $this->assertStringNotContainsString('Cliente Test', $testo);
+        $this->assertStringNotContainsString('Sede Nascosta', $testo);
+
+        $this->actingAs(User::findOrFail(1))
+            ->get(route('turni.stampa', ['ids' => [9]]))
+            ->assertNotFound();
+    }
+
+    public function test_stampa_pdf_richiede_una_selezione_e_un_ruolo_autorizzato(): void
+    {
+        $this->get(route('turni.stampa', ['ids' => [1]]))->assertRedirect(route('login'));
+
+        $this->actingAs(User::findOrFail(1))->get(route('turni.stampa'))->assertStatus(422);
+
+        DB::table('tc_admin')->insert([
+            'id' => 4, 'user_type' => 3, 'attivo' => 'Y', 'nome' => 'Cliente', 'cognome' => 'Uno', 'id_cliente' => 1,
+        ]);
+
+        $this->actingAs(User::findOrFail(4))->get(route('turni.stampa', ['ids' => [1]]))->assertForbidden();
+        $this->actingAs(User::findOrFail(2))->get(route('turni.stampa', ['ids' => [1]]))->assertForbidden();
     }
 
     public function test_operatore_non_puo_eliminare_i_turni_selezionati(): void

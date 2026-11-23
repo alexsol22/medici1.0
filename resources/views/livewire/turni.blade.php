@@ -53,7 +53,7 @@
     </h1>
     <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-white p-3 shadow-sm sm:p-4">
       <div class="flex min-w-0 flex-wrap items-center gap-2">
-        <x-ui.filtri :values="array_merge(
+        <x-ui.filtri title="Cerca" trigger-label="Cerca" :values="array_merge(
             ['da' => $da, 'a' => $a, 'filtroStato' => $filtroStato],
             ! auth()->user()->isOperatore() ? ['filtroSede' => $filtroSede, 'filtroOperatore' => $filtroOperatore] : [],
             $staff ? ['filtroCliente' => $filtroCliente] : [],
@@ -373,7 +373,14 @@
         @if ($staff)
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 px-4 py-3">
                 <p class="text-sm text-slate-600">{{ count($selezionati) }} selezionati</p>
-                <button type="button" wire:click="richiediEliminazioneSelezionati" @disabled(count($selezionati) === 0) class="btn-danger">Elimina selezionati</button>
+                <div class="flex flex-wrap items-center gap-2">
+                    @if (count($selezionati) === 0)
+                        <button type="button" class="btn-soft" disabled>Scarica PDF</button>
+                    @else
+                        <a href="{{ route('turni.stampa', ['ids' => array_map('intval', $selezionati)]) }}" class="btn-soft">Scarica PDF</a>
+                    @endif
+                    <button type="button" wire:click="richiediEliminazioneSelezionati" @disabled(count($selezionati) === 0) class="btn-danger">Elimina selezionati</button>
+                </div>
             </div>
         @endif
         <div class="overflow-x-auto">

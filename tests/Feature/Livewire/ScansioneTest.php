@@ -213,7 +213,37 @@ class ScansioneTest extends TestCase
         $this->actingAs(User::findOrFail(1))
             ->get(route('scansione.foto'))
             ->assertOk()
+            ->assertHeader('Cache-Control', 'no-cache, private')
             ->assertStreamedContent('foto-sede');
+    }
+
+    public function test_pagina_cambia_indirizzo_della_foto_quando_cambia_la_sede_del_turno(): void
+    {
+        $this->preparaTurno();
+        DB::table('tc_sedi')->insert([
+            'id' => 2,
+            'id_cliente' => 1,
+            'descrizione' => 'Sede nord',
+            'foto' => 'nord.jpg',
+        ]);
+        DB::table('tc_sedi')->where('id', 1)->update(['id_cliente' => 1, 'foto' => 'sede.jpg']);
+        Storage::fake(config('filesystems.files_disk'));
+        Storage::disk(config('filesystems.files_disk'))->put(Sede::findOrFail(1)->percorsoFoto(), 'foto-sede');
+        Storage::disk(config('filesystems.files_disk'))->put(Sede::findOrFail(2)->percorsoFoto(), 'foto-sede-nord-piu-lunga');
+
+        $prima = $this->indirizzoFoto(
+            Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)->html(),
+        );
+
+        DB::table('tc_turni')->where('id', 1)->update(['id_sede' => 2]);
+
+        $seconda = $this->indirizzoFoto(
+            Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)->html(),
+        );
+
+        $this->assertStringContainsString('scansione/foto?v=', $prima);
+        $this->assertStringContainsString('scansione/foto?v=', $seconda);
+        $this->assertNotSame($prima, $seconda);
     }
 
     public function test_foto_del_turno_attivo_usa_la_postazione_se_la_sede_non_ha_foto(): void
@@ -369,6 +399,13 @@ class ScansioneTest extends TestCase
 
         $this->assertSame(2, (int) DB::table('tc_turni')->where('id', 7)->value('id_operatore'));
         $this->assertSame(0, DB::table('tc_gda')->count());
+    }
+
+    private function indirizzoFoto(string $html): string
+    {
+        preg_match('/src="([^"]*scansione\/foto[^"]*)"/', $html, $trovato);
+
+        return html_entity_decode($trovato[1] ?? '');
     }
 
     private function preparaSede(): void

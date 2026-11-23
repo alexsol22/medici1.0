@@ -16,13 +16,17 @@ use App\Models\User;
 use App\Services\QrSede;
 use App\Services\RegistroGda;
 use App\Services\Timbratura;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DownloadController extends Controller
 {
@@ -57,7 +61,9 @@ class DownloadController extends Controller
         $percorso = $timbratura->turnoAttivo(auth()->user())?->sede?->percorsoImmagineTimbratura();
         abort_unless($percorso && Storage::disk(config('filesystems.files_disk'))->exists($percorso), 404);
 
-        return Storage::disk(config('filesystems.files_disk'))->response($percorso, null, ['Cache-Control' => 'private, max-age=3600']);
+        return Storage::disk(config('filesystems.files_disk'))->response($percorso, null, [
+            'Cache-Control' => 'private, no-cache',
+        ]);
     }
 
     public function fotoSede(Sede $sede)
@@ -175,6 +181,64 @@ class DownloadController extends Controller
                 (int) ($filtri['operatore'] ?? 0) ?: null,
             ),
         ]);
+    }
+
+    public function stampaTurni(Request $request): StreamedResponse
+    {
+        $user = auth()->user();
+        abort_unless($user->isStaff(), 403);
+
+        $ids = $this->idsTurniRichiesti($request);
+        abort_if($ids->isEmpty(), 422, 'Seleziona almeno un turno.');
+
+        $turni = Turno::with(['operatore', 'sede.cliente'])
+            ->whereIn('id', $ids)
+            ->whereIn('id_cliente', Cliente::visibiliA($user)->select('tc_clienti.id'))
+            ->orderBy('data_inizio')
+            ->orderBy('ora_inizio')
+            ->get();
+
+        abort_if($turni->isEmpty(), 404);
+
+        $html = view('stampe.turni', [
+            'azienda' => Config::first(),
+            'turni' => $turni,
+            'logo' => public_path('brand/icon-192.png'),
+        ])->render();
+
+        $opzioni = new Options;
+        $opzioni->setChroot(base_path());
+        $opzioni->setDefaultFont('DejaVu Sans');
+        $opzioni->setIsRemoteEnabled(false);
+        $opzioni->setIsHtml5ParserEnabled(true);
+
+        $pdf = new Dompdf($opzioni);
+        $pdf->loadHtml($html);
+        $pdf->setPaper('A4', 'landscape');
+        $pdf->render();
+        $contenuto = $pdf->output();
+
+        return response()->streamDownload(
+            function () use ($contenuto): void {
+                echo $contenuto;
+            },
+            'turni-'.now()->format('Ymd').'.pdf',
+            ['Content-Type' => 'application/pdf'],
+        );
+    }
+
+    /** @return Collection<int, int> */
+    private function idsTurniRichiesti(Request $request): Collection
+    {
+        $raw = $request->input('ids', []);
+        $raw = is_array($raw) ? $raw : explode(',', (string) $raw);
+
+        return collect($raw)
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->take(500)
+            ->values();
     }
 
     public function presenze(Request $request)

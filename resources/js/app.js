@@ -47,9 +47,19 @@ document.addEventListener('alpine:init', () => {
 
         init() {
             this.posizione();
+            this.alRitorno = () => {
+                if (document.visibilityState === 'visible') {
+                    this.posizione();
+                }
+            };
+            document.addEventListener('visibilitychange', this.alRitorno);
             if (new URLSearchParams(window.location.search).get('sostituzione') === '1') {
                 this.sostituzione = true;
             }
+        },
+
+        destroy() {
+            document.removeEventListener('visibilitychange', this.alRitorno);
         },
 
         apriSostituzione() {
@@ -65,24 +75,49 @@ document.addEventListener('alpine:init', () => {
         },
 
         posizione() {
-            if (!navigator.geolocation) { this.gps = 'assente'; return; }
+            if (!navigator.geolocation) {
+                this.gps = 'assente';
+                return Promise.resolve(null);
+            }
+            if (this.richiestaPosizione) {
+                return this.richiestaPosizione;
+            }
+
             this.gps = 'attesa';
-            navigator.geolocation.getCurrentPosition(
-                p => { this.lat = p.coords.latitude; this.lng = p.coords.longitude; this.gps = 'ok'; },
-                () => { this.gps = 'negato'; },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+            this.richiestaPosizione = new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                    (p) => {
+                        this.lat = p.coords.latitude;
+                        this.lng = p.coords.longitude;
+                        this.gps = 'ok';
+                        resolve({ lat: this.lat, lng: this.lng });
+                    },
+                    () => {
+                        this.lat = null;
+                        this.lng = null;
+                        this.gps = 'negato';
+                        resolve(null);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+                );
+            }).finally(() => {
+                this.richiestaPosizione = null;
+            });
+
+            return this.richiestaPosizione;
         },
 
         async conferma() {
             if (!this.codice || this.caricamento) return;
-            if (this.gps !== 'ok' || this.lat === null || this.lng === null) {
-                this.errore = 'Posizione non disponibile. Consenti il GPS per registrare la timbratura.';
-                return;
-            }
             this.caricamento = true;
             this.errore = null;
             try {
-                await this.$wire.timbra(this.codice, this.lat, this.lng, this.sostituzione, this.$refs.nota?.value ?? '');
+                const posizione = await this.posizione();
+                if (!posizione) {
+                    this.errore = 'Posizione non disponibile. Consenti il GPS per registrare la timbratura.';
+                    return;
+                }
+                await this.$wire.timbra(this.codice, posizione.lat, posizione.lng, this.sostituzione, this.$refs.nota?.value ?? '');
                 const riuscita = this.$wire.risultato?.ok === true;
                 this.codice = null;
                 if (this.$refs.nota) this.$refs.nota.value = '';
