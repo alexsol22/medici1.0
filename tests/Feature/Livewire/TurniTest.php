@@ -32,6 +32,7 @@ class TurniTest extends TestCase
             $table->string('attivo')->nullable();
             $table->string('nome')->nullable();
             $table->string('cognome')->nullable();
+            $table->string('codice')->nullable();
             $table->string('email')->nullable();
             $table->string('user')->nullable();
             $table->string('id_cliente')->nullable();
@@ -240,7 +241,8 @@ class TurniTest extends TestCase
             ->set('vista', 'lista')
             ->set('da', $data)
             ->set('a', $data)
-            ->assertSee('Visualizza timbrature')
+            ->assertDontSee('Visualizza timbrature')
+            ->assertDontSee('Dettaglio turno')
             ->assertDontSee('role="progressbar"', false);
 
         $componente->call('mostraTurno', $turno)
@@ -347,6 +349,25 @@ class TurniTest extends TestCase
             ->assertDontSee('Copertura settimanale')
             ->assertDontSee('20 su 8')
             ->assertDontSee('Sede Altra');
+    }
+
+    public function test_la_lista_mostra_operatore_come_codice_cognome_e_nome(): void
+    {
+        DB::table('tc_admin')->insert([
+            ['id' => 1, 'user_type' => 2, 'attivo' => 'Y', 'nome' => 'Admin', 'cognome' => 'Test', 'codice' => null],
+            ['id' => 2, 'user_type' => 4, 'attivo' => 'Y', 'nome' => 'ALESSIO', 'cognome' => 'MARGUTTI', 'codice' => 'SIERRA 25'],
+        ]);
+        DB::table('tc_clienti')->insert(['id' => 1, 'ragione_sociale' => 'Cliente', 'isTest' => 0]);
+        DB::table('tc_sedi')->insert(['id' => 1, 'id_cliente' => 1, 'descrizione' => 'Sede']);
+        DB::table('tc_turni')->insert([
+            'id_cliente' => 1, 'id_sede' => 1, 'id_operatore' => 2,
+            'data_inizio' => '2026-11-09', 'data_fine' => '2026-11-09',
+            'ora_inizio' => '08:00', 'ora_fine' => '16:00', 'ore' => 8, 'stato' => 'P',
+        ]);
+
+        Livewire::actingAs(User::findOrFail(1))->test(Turni::class)
+            ->set('vista', 'lista')
+            ->assertSee('SIERRA 25 (MARGUTTI ALESSIO)');
     }
 
     private function aggiungiOreRichieste(): void

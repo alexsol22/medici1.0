@@ -102,6 +102,13 @@ class TurniGestioneTest extends TestCase
                 $table->unsignedInteger('id_operatore');
             });
         }
+        Schema::create('tc_ritardi', function (Blueprint $table): void {
+            $table->integer('id');
+            $table->unsignedInteger('id_turno')->nullable();
+            $table->unsignedInteger('id_operatore')->nullable();
+            $table->integer('inizio')->default(0);
+            $table->integer('fine')->default(0);
+        });
         Schema::create('tc_send_email', function (Blueprint $table): void {
             $table->integer('id')->nullable();
             $table->integer('code')->nullable();
@@ -177,15 +184,73 @@ class TurniGestioneTest extends TestCase
         return $componente->viewData('turni')->pluck('id')->sort()->values()->all();
     }
 
+    public function test_il_calendario_elimina_un_turno_con_la_stessa_conferma_della_lista(): void
+    {
+        DB::table('tc_gda')->insert([
+            ['id_turno' => 1, 'tipo' => 'I'],
+        ]);
+
+        Livewire::actingAs(User::findOrFail(1))->test(Turni::class)
+            ->set('vista', 'calendario')
+            ->set('periodoCalendario', 'giorno')
+            ->assertSee('Elimina il turno delle 08:00 presso Sede Uno di Mario Rossi')
+            ->call('richiediEliminazione', 1)
+            ->assertSee('Eliminare il turno del 06/11/2026 08:00?')
+            ->assertSee('Verranno eliminati')
+            ->assertSee('definitivamente')
+            ->assertSee('Per confermare scrivi')
+            ->set('conferma', 'no')
+            ->call('elimina')
+            ->assertHasErrors(['conferma'])
+            ->assertSee('Il testo non coincide: eliminazione non eseguita.')
+            ->set('conferma', ' CONFERMA ')
+            ->call('elimina')
+            ->assertHasNoErrors()
+            ->assertSee('Eliminazione completata')
+            ->assertSee('Turno eliminato insieme ai GDA collegati.')
+            ->assertDontSee('Elimina il turno delle 08:00 presso Sede Uno di Mario Rossi');
+
+        $this->assertNull(DB::table('tc_turni')->find(1));
+        $this->assertSame(0, DB::table('tc_gda')->where('id_turno', 1)->count());
+        $this->assertNotNull(DB::table('tc_turni')->find(2));
+    }
+
+    public function test_modificare_un_turno_aggiorna_la_stessa_riga_e_non_ne_crea_un_altra(): void
+    {
+        DB::table('tc_gda')->insert([
+            ['id_turno' => 1, 'tipo' => 'I'],
+        ]);
+
+        Livewire::actingAs(User::findOrFail(1))->test(Turni::class)
+            ->call('modifica', 1)
+            ->set('m.data_inizio', '2026-11-07')
+            ->set('m.ora_inizio', '09:00')
+            ->set('m.data_fine', '2026-11-07')
+            ->set('m.ora_fine', '12:00')
+            ->call('aggiorna')
+            ->assertHasNoErrors();
+
+        $turno = DB::table('tc_turni')->where('id', 1)->first();
+
+        $this->assertSame(6, DB::table('tc_turni')->count());
+        $this->assertSame('2026-11-07', Carbon::parse($turno->data_inizio)->toDateString());
+        $this->assertSame('09:00', Carbon::parse($turno->ora_inizio)->format('H:i'));
+        $this->assertSame('12:00', Carbon::parse($turno->ora_fine)->format('H:i'));
+        $this->assertSame(1, DB::table('tc_gda')->where('id_turno', 1)->count());
+        $this->assertSame('2026-11-06', Carbon::parse(DB::table('tc_turni')->where('id', 2)->value('data_inizio'))->toDateString());
+    }
+
+    public function test_operatore_non_vede_eliminazione_nel_calendario(): void
+    {
+        Livewire::actingAs(User::findOrFail(2))->test(Turni::class)
+            ->set('vista', 'calendario')
+            ->set('periodoCalendario', 'giorno')
+            ->assertSee('Visualizza timbrature turno delle 08:00 presso Sede Uno per Mario Rossi')
+            ->assertDontSee('Elimina il turno delle');
+    }
+
     public function test_eliminare_un_turno_cancella_gda_e_ritardi_collegati_e_lascia_gli_altri(): void
     {
-        Schema::create('tc_ritardi', function (Blueprint $table): void {
-            $table->integer('id');
-            $table->unsignedInteger('id_turno')->nullable();
-            $table->unsignedInteger('id_operatore')->nullable();
-            $table->integer('inizio')->default(0);
-            $table->integer('fine')->default(0);
-        });
         DB::table('tc_gda')->insert([
             ['id_turno' => 2, 'id_operatore' => 2, 'id_cliente' => 1, 'id_sede' => 1, 'tipo' => 'I'],
             ['id_turno' => 2, 'id_operatore' => 2, 'id_cliente' => 1, 'id_sede' => 1, 'tipo' => 'P'],

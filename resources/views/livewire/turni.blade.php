@@ -348,13 +348,22 @@
                         <div class="space-y-1">
                             @foreach ($periodoCalendario === 'mese' ? $giorno->take(3) : $giorno as $t)
                                 @php($c = ['programmato' => 'bg-sky-100 text-sky-800', 'in_corso' => 'bg-emerald-100 text-emerald-800', 'completato' => 'bg-teal-100 text-teal-800', 'non_timbrato' => 'bg-amber-100 text-amber-800', 'non_completato' => 'bg-orange-100 text-orange-800', 'non_eseguito' => 'bg-rose-100 text-rose-800'][$t->statoEffettivo()])
-                                <button type="button" wire:click="mostraTurno({{ $t->id }})" wire:key="turno-{{ $t->id }}" class="flex w-full min-w-0 items-center justify-between gap-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium leading-tight hover:ring-1 hover:ring-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 {{ $c }}" title="{{ $t->sede?->descrizione }} · {{ $t->operatore?->nome_completo }}" aria-label="Visualizza timbrature turno delle {{ $t->inizio->format('H:i') }} presso {{ $t->sede?->descrizione }} per {{ $t->operatore?->nome_completo }}">
-                                    <span class="min-w-0 truncate"><span class="font-bold">{{ $t->inizio->format('H:i') }}</span> <span class="hidden sm:inline">{{ $t->operatore?->cognome ?: $t->operatore?->nome }}</span></span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.5-6.25 9.75-6.25S21.75 12 21.75 12 18.25 18.25 12 18.25 2.25 12 2.25 12Z" />
-                                        <circle cx="12" cy="12" r="2.5" />
-                                    </svg>
-                                </button>
+                                <div wire:key="turno-{{ $t->id }}" class="flex min-w-0 items-stretch gap-0.5">
+                                    <button type="button" wire:click="mostraTurno({{ $t->id }})" class="flex min-w-0 flex-1 items-center justify-between gap-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium leading-tight hover:ring-1 hover:ring-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 {{ $c }}" title="{{ $t->sede?->descrizione }} · {{ $t->operatore?->nome_completo }}" aria-label="Visualizza timbrature turno delle {{ $t->inizio->format('H:i') }} presso {{ $t->sede?->descrizione }} per {{ $t->operatore?->nome_completo }}">
+                                        <span class="min-w-0 truncate"><span class="font-bold">{{ $t->inizio->format('H:i') }}</span> <span class="hidden sm:inline">{{ $t->operatore?->cognome ?: $t->operatore?->nome }}</span></span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.5-6.25 9.75-6.25S21.75 12 21.75 12 18.25 18.25 12 18.25 2.25 12 2.25 12Z" />
+                                            <circle cx="12" cy="12" r="2.5" />
+                                        </svg>
+                                    </button>
+                                    @if ($staff)
+                                        <button type="button" wire:click="richiediEliminazione({{ $t->id }})" class="inline-flex shrink-0 items-center justify-center rounded-md px-1 hover:ring-1 hover:ring-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-500 {{ $c }}" title="Elimina turno" aria-label="Elimina il turno delle {{ $t->inizio->format('H:i') }} presso {{ $t->sede?->descrizione }} di {{ $t->operatore?->nome_completo }}">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5h6v2m-7 0 1 12h6l1-12" />
+                                            </svg>
+                                        </button>
+                                    @endif
+                                </div>
                             @endforeach
                             @if ($periodoCalendario === 'mese' && $giorno->count() > 3)
                                 <button wire:click="vaiAlGiorno('{{ $k }}')" class="px-1 text-[11px] font-semibold text-sky-600 hover:underline">+{{ $giorno->count() - 3 }} altri</button>
@@ -385,7 +394,7 @@
         @endif
         <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-sky-100">
-            <thead class="bg-sky-50/60"><tr>@if ($staff)<th class="th w-12"><input type="checkbox" @checked($paginaSelezionata) wire:click="alternaSelezionePagina({{ json_encode($idsPagina) }})" aria-label="Seleziona i turni di questa pagina" class="size-4 rounded border-sky-300 text-sky-600" @disabled($idsPagina === [])></th>@endif<th class="th">Ragione Sociale</th><th class="th">Sede</th><th class="th">Operatore</th><th class="th">Inizio Turno</th><th class="th">Fine Turno</th><th class="th text-center">Dettaglio</th><th class="th">Ore</th><th class="th">Stato</th>@if ($staff)<th class="th text-center">Inizia</th><th class="th text-center">Chiudi</th><th class="th text-center">Mod</th><th class="th text-center">Can</th>@endif</tr></thead>
+            <thead class="bg-sky-50/60"><tr>@if ($staff)<th class="th w-12"><input type="checkbox" @checked($paginaSelezionata) wire:click="alternaSelezionePagina({{ json_encode($idsPagina) }})" aria-label="Seleziona i turni di questa pagina" class="size-4 rounded border-sky-300 text-sky-600" @disabled($idsPagina === [])></th>@endif<th class="th">Ragione Sociale</th><th class="th">Sede</th><th class="th">Operatore</th><th class="th">Inizio Turno</th><th class="th">Fine Turno</th><th class="th">Ore</th><th class="th">Stato</th>@if ($staff)<th class="th text-center">Inizia</th><th class="th text-center">Chiudi</th><th class="th text-center">Mod</th><th class="th text-center">Can</th>@endif</tr></thead>
             <tbody class="divide-y divide-sky-50">
                 @forelse ($turni as $t)
                     @php([$et, $cl] = \App\Models\Legacy\Turno::etichette()[$t->statoEffettivo()])
@@ -395,17 +404,9 @@
                         @endif
                         <td class="td font-semibold text-slate-800">{{ $t->sede?->cliente?->ragione_sociale }}</td>
                         <td class="td">{{ $t->sede?->descrizione }}</td>
-                        <td class="td">{{ $t->operatore?->nome_completo }}</td>
+                        <td class="td">@if ($t->operatore){{ $t->operatore->codice }} ({{ trim(($t->operatore->cognome ?? '').' '.($t->operatore->nome ?? '')) }})@endif</td>
                         <td class="td whitespace-nowrap">{{ $t->inizio->format('d/m/Y H:i') }}</td>
                         <td class="td whitespace-nowrap">{{ $t->fine->format('d/m/Y H:i') }}</td>
-                        <td class="td text-center">
-                            <button type="button" wire:click="mostraTurno({{ $t->id }})" class="inline-flex h-9 w-9 items-center justify-center rounded-xl text-sky-700 transition hover:bg-sky-100 hover:text-sky-900 focus:outline-none focus:ring-2 focus:ring-sky-500" aria-label="Visualizza timbrature turno delle {{ $t->inizio->format('H:i') }} presso {{ $t->sede?->descrizione }}" title="Visualizza timbrature">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.5-6.25 9.75-6.25S21.75 12 21.75 12 18.25 18.25 12 18.25 2.25 12 2.25 12Z" />
-                                    <circle cx="12" cy="12" r="2.5" />
-                                </svg>
-                            </button>
-                        </td>
                         <td class="td">{{ $t->ore }}@if ($t->ore_lavorate !== null) <span class="text-xs text-slate-500">({{ $t->ore_lavorate }} lav.)</span>@endif</td>
                         <td class="td"><span class="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold {{ $cl }}">{{ $et }}</span></td>
                         @if ($staff)
@@ -416,7 +417,7 @@
                         @endif
                     </tr>
                 @empty
-                    <tr><td colspan="{{ $staff ? 13 : 8 }}" class="td py-10 text-center text-slate-500">Nessun turno nel periodo selezionato.</td></tr>
+                    <tr><td colspan="{{ $staff ? 12 : 7 }}" class="td py-10 text-center text-slate-500">Nessun turno nel periodo selezionato.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -558,7 +559,7 @@
             <div class="mt-5">
                 <x-turni.progressione :turno="$turnoDettaglio" />
             </div>
-            <div class="mt-5 flex justify-end gap-2">@if ($staff)<button type="button" wire:click="modifica({{ $turnoDettaglio->id }})" class="btn-primary">Modifica</button>@endif<button type="button" wire:click="chiudiDettaglioTurno" class="btn-soft">Chiudi</button></div>
+            <div class="mt-5 flex justify-end gap-2">@if ($staff)<button type="button" wire:click="richiediEliminazione({{ $turnoDettaglio->id }})" class="btn-danger">Elimina</button><button type="button" wire:click="modifica({{ $turnoDettaglio->id }})" class="btn-primary">Modifica</button>@endif<button type="button" wire:click="chiudiDettaglioTurno" class="btn-soft">Chiudi</button></div>
         </x-ui.modal>
     @endif
     @if ($turnoModifica)

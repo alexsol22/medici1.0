@@ -140,3 +140,20 @@ html.dark .shadow-sky-200 { --tw-shadow-color: rgb(14 165 233 / 0.25); }
 html.dark ::placeholder { color: #64748b; }
 
 [x-cloak] { display: none !important; }
+
+/* Su iPhone un campo sotto i 16px ingrandisce tutta la pagina e lo zoom resta cambiando funzione.
+   Il doppio tap fa lo stesso. Il pinch volontario resta disponibile. */
+html {
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    touch-action: manipulation;
+}
+
+@media (max-width: 1023px), (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]),
+    select,
+    textarea {
+        font-size: 16px;
+    }
+}

@@ -2,7 +2,7 @@
 <html lang="it" class="h-full">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <x-ui.pwa />
     <link rel="icon" type="image/svg+xml" href="{{ asset('brand/omnia-control.svg') }}?v=2">
     <title>{{ ($title ?? 'Accedi') }} · Omnia Control</title>

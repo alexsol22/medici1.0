@@ -391,6 +391,7 @@ class Turni extends Component
         $this->reset('conferma');
         $this->resetErrorBag();
         $this->esitoEliminazione = null;
+        $this->turnoSelezionatoId = null;
         $this->eliminaSelezione = false;
         $this->eliminaId = $id;
     }
