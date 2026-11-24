@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\Messaggi;
 use App\Livewire\RecuperaPassword;
 use App\Mail\NotificaHtml;
+use App\Models\Legacy\Email;
+use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +35,7 @@ class RecuperaPasswordTest extends TestCase
             $table->string('nome')->nullable();
             $table->string('cognome')->nullable();
             $table->string('email')->nullable();
+            $table->unsignedInteger('user_type')->nullable();
         });
 
         Schema::create('tc_config', function (Blueprint $table) {
@@ -58,9 +62,13 @@ class RecuperaPasswordTest extends TestCase
 
     public function test_email_template_has_logo_footer_and_responsive_layout(): void
     {
+        config(['app.url' => 'https://vigilander.test']);
+        url()->forceRootUrl('https://vigilander.test');
+
         $html = NotificaHtml::renderizza('Oggetto prova', '<p>Corpo</p>', ['etichetta' => 'Vai', 'url' => 'https://example.test/x']);
 
-        $this->assertMatchesRegularExpression('/src="data:image\/png;base64,[A-Za-z0-9+\/=]+"/', $html);
+        $this->assertStringContainsString('src="https://vigilander.test/brand/logo-email.png"', $html);
+        $this->assertStringNotContainsString('data:image', $html);
         $this->assertStringContainsString('width="440"', $html);
         $this->assertStringContainsString('height="127"', $html);
         $this->assertStringContainsString(config('app.name'), $html);
@@ -74,6 +82,47 @@ class RecuperaPasswordTest extends TestCase
         $this->assertStringContainsString('max-width: 620px', $html);
         $this->assertStringContainsString('https://example.test/x', $html);
         $this->assertStringContainsString('<p>Corpo</p>', $html);
+    }
+
+    public function test_archived_email_allows_the_public_logo(): void
+    {
+        config(['app.url' => 'https://vigilander.test']);
+        Schema::create('tc_email', function (Blueprint $table): void {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('id_operatore')->nullable();
+            $table->string('oggetto')->nullable();
+            $table->text('email')->nullable();
+            $table->text('destinatario')->nullable();
+            $table->dateTime('data_invio')->nullable();
+        });
+        Schema::create('_tracking', function (Blueprint $table): void {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('id_user')->nullable();
+            $table->string('addr')->nullable();
+            $table->string('host')->nullable();
+            $table->string('agent')->nullable();
+            $table->string('pagina')->nullable();
+            $table->dateTime('data_view')->nullable();
+            $table->text('action')->nullable();
+        });
+        $staff = User::create([
+            'user' => 'staff@example.test',
+            'password' => 'secret',
+            'attivo' => 'Y',
+            'user_type' => 2,
+            'nome' => 'Ada',
+            'cognome' => 'Staff',
+        ]);
+        $email = Email::create([
+            'oggetto' => 'Avviso',
+            'email' => '<img src="https://vigilander.test/brand/logo-email.png" alt="Vigilander">',
+            'data_invio' => now(),
+        ]);
+
+        Livewire::actingAs($staff)->test(Messaggi::class, ['canale' => 'email'])
+            ->call('visualizzaEmail', $email->id)
+            ->assertSet('modalEmail', true)
+            ->assertSee('img-src data: cid: https://vigilander.test', false);
     }
 
     private function utente(string $attivo = 'Y'): void

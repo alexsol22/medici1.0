@@ -59,25 +59,20 @@ class NotificaHtml extends Mailable
     }
 
     /**
-     * Immagine dentro l'HTML: l'archivio email accetta solo data e cid,
-     * e il file pubblico può non essere ancora raggiungibile dal client.
+     * URL pubblico: Gmail e Outlook scartano i data URI, quindi il logo sparisce
+     * anche quando il file è sul server.
      *
      * @return array{src: string, larghezza: int, altezza: int}
      */
     private static function logoIncorporato(): array
     {
         $percorso = public_path((string) config('brand.logo_email'));
-        $contenuto = is_file($percorso) ? file_get_contents($percorso) : false;
-        $misure = $contenuto !== false ? getimagesizefromstring($contenuto) : false;
-
-        if ($contenuto === false || $misure === false) {
-            return ['src' => asset((string) config('brand.logo')), 'larghezza' => 220, 'altezza' => 64];
-        }
+        $misure = is_file($percorso) ? getimagesize($percorso) : false;
 
         return [
-            'src' => 'data:image/png;base64,'.base64_encode($contenuto),
-            'larghezza' => $misure[0],
-            'altezza' => $misure[1],
+            'src' => asset((string) config('brand.logo_email')),
+            'larghezza' => $misure[0] ?? 440,
+            'altezza' => $misure[1] ?? 127,
         ];
     }
 }

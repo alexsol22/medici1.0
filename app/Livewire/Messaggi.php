@@ -74,10 +74,41 @@ class Messaggi extends Component
 
         $email = Email::query()->findOrFail($id);
         Tracking::registra('Visualizzazione dettaglio  email  '.$email->oggetto);
-        $policy = "default-src 'none'; img-src data: cid:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'";
+        $policy = $this->policyArchivioEmail();
 
         $this->emailVisualizzazione = '<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="'.$policy.'"></head><body>'.$email->email.'</body></html>';
         $this->modalEmail = true;
+    }
+
+    /**
+     * Le mail già archiviate usano data URI oppure l'URL pubblico del logo.
+     * L'origine dell'app è l'unica immagine remota ammessa.
+     */
+    private function policyArchivioEmail(): string
+    {
+        $immagini = 'data: cid:';
+        $origine = $this->origineApplicazione();
+
+        if ($origine !== null) {
+            $immagini .= ' '.$origine;
+        }
+
+        return "default-src 'none'; img-src {$immagini}; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'";
+    }
+
+    private function origineApplicazione(): ?string
+    {
+        $parti = parse_url((string) config('app.url'));
+        $schema = $parti['scheme'] ?? '';
+        $host = $parti['host'] ?? '';
+
+        if ($schema === '' || $host === '') {
+            return null;
+        }
+
+        $porta = isset($parti['port']) ? ':'.$parti['port'] : '';
+
+        return $schema.'://'.$host.$porta;
     }
 
     public function chiudiEmail(): void
