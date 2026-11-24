@@ -36,7 +36,6 @@ class NotificaHtml extends Mailable
     {
         $config = Config::first();
         $app = trim((string) config('app.name'));
-        $parti = preg_split('/\s+/', $app, 2) ?: [$app];
         $indirizzo = trim(html_entity_decode(implode(' ', array_filter([
             $config?->societa_indirizzo,
             trim($config?->societa_cap.' '.$config?->societa_comune.($config?->societa_provincia ? ' ('.$config->societa_provincia.')' : '')),
@@ -47,9 +46,8 @@ class NotificaHtml extends Mailable
             'corpoHtml' => $corpoHtml,
             'azione' => $azione,
             'app' => $app,
-            'marca' => $parti[0],
-            'marchio' => $parti[1] ?? '',
-            'logo' => self::logoPubblico(),
+            'logo' => self::logoIncorporato(),
+            'colori' => config('brand.colors'),
             'societa' => [
                 'ragione_sociale' => $config?->ragione_sociale ?: config('app.name'),
                 'indirizzo' => $indirizzo,
@@ -60,9 +58,26 @@ class NotificaHtml extends Mailable
         ])->render();
     }
 
-    /** URL pubblico: i client di posta non mostrano le immagini incorporate nel messaggio. */
-    private static function logoPubblico(): string
+    /**
+     * Immagine dentro l'HTML: l'archivio email accetta solo data e cid,
+     * e il file pubblico può non essere ancora raggiungibile dal client.
+     *
+     * @return array{src: string, larghezza: int, altezza: int}
+     */
+    private static function logoIncorporato(): array
     {
-        return asset('brand/icon-192.png');
+        $percorso = public_path((string) config('brand.logo_email'));
+        $contenuto = is_file($percorso) ? file_get_contents($percorso) : false;
+        $misure = $contenuto !== false ? getimagesizefromstring($contenuto) : false;
+
+        if ($contenuto === false || $misure === false) {
+            return ['src' => asset((string) config('brand.logo')), 'larghezza' => 220, 'altezza' => 64];
+        }
+
+        return [
+            'src' => 'data:image/png;base64,'.base64_encode($contenuto),
+            'larghezza' => $misure[0],
+            'altezza' => $misure[1],
+        ];
     }
 }

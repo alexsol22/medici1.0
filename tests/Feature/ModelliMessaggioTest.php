@@ -75,7 +75,7 @@ class ModelliMessaggioTest extends TestCase
         $response = $this->actingAs(User::findOrFail(1))->get(route('messaggi'));
 
         $response->assertOk()
-            ->assertSee('<title>Messaggi · Omnia Control</title>', false)
+            ->assertSee('<title>Messaggi · '.config('app.name').'</title>', false)
             ->assertSee('Messaggi automatici')
             ->assertSee('Vedi layout')
             ->assertDontSee('Invia SMS')

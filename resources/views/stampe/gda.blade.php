@@ -30,7 +30,7 @@
 
     <table class="intestazione">
         <tr>
-            <td style="width: 150px"><img src="{{ asset('brand/logo-security-scanner.png') }}" alt="" style="width: 120px"></td>
+            <td style="width: 220px"><img src="{{ asset(config('brand.logo')) }}" alt="{{ config('app.name') }}" style="width: 200px"></td>
             <td>
                 <p class="grande">{{ $azienda?->app }}</p>
                 <p class="medio">{{ $azienda?->societa_indirizzo }}</p>

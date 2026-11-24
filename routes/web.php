@@ -13,29 +13,29 @@ use Illuminate\Support\Facades\Route;
 Route::get('/manifest.webmanifest', function () {
     $manifest = [
         'id' => '/',
-        'name' => 'Omnia Control',
-        'short_name' => 'Omnia',
+        'name' => config('app.name'),
+        'short_name' => config('brand.short_name'),
         'start_url' => '/',
         'scope' => '/',
         'display' => 'standalone',
-        'background_color' => '#152B38',
-        'theme_color' => '#f4f9fc',
+        'background_color' => config('brand.colors.navy'),
+        'theme_color' => config('brand.colors.page'),
         'lang' => 'it',
         'icons' => [
             [
-                'src' => '/brand/icon-192.png',
+                'src' => '/'.config('brand.icons.192'),
                 'sizes' => '192x192',
                 'type' => 'image/png',
                 'purpose' => 'any',
             ],
             [
-                'src' => '/brand/icon-512.png',
+                'src' => '/'.config('brand.icons.512'),
                 'sizes' => '512x512',
                 'type' => 'image/png',
                 'purpose' => 'any',
             ],
             [
-                'src' => '/brand/icon-maskable-512.png',
+                'src' => '/'.config('brand.icons.maskable'),
                 'sizes' => '512x512',
                 'type' => 'image/png',
                 'purpose' => 'maskable',

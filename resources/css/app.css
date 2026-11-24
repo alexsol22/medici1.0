@@ -11,10 +11,11 @@
 
 @layer components {
     .card { @apply rounded-2xl bg-(--surface) shadow-sm ring-1 ring-sky-100; }
-        .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-50 bg-sky-500 text-white shadow-sm hover:bg-sky-600; }
+    .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-50; background-color: var(--brand-accent); }
+    .btn-primary:hover { background-color: color-mix(in srgb, var(--brand-accent) 82%, #000); }
     .btn-soft { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-50 bg-sky-50 text-sky-700 hover:bg-sky-100; }
-    .btn-invio { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-50; background-color: #0369a1; }
-    .btn-invio:hover { background-color: #075985; }
+    .btn-invio { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-50; background-color: var(--brand-navy); }
+    .btn-invio:hover { background-color: color-mix(in srgb, var(--brand-navy) 88%, #fff); }
     .btn-danger { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-50 bg-rose-50 text-rose-600 hover:bg-rose-100; }
     .input { @apply block w-full rounded-xl border-0 bg-(--surface-input) px-3 py-2 text-sm text-slate-800 shadow-sm ring-1 ring-sky-200 placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400; }
     .label { @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500; }
@@ -44,6 +45,9 @@
     --surface: #fff;
     --surface-input: #fff;
     --page: #f0f9ff;
+    --brand-navy: #071E4A;
+    --brand-accent: #0094E8;
+    --brand-link: #0077C2;
 }
 
 html.dark {
@@ -135,7 +139,7 @@ html.dark .border-white { border-color: var(--surface); }
 html.dark .via-white { --tw-gradient-via: var(--page); }
 html.dark .from-sky-50 { --tw-gradient-from: #0d1a2e; }
 html.dark .to-sky-100 { --tw-gradient-to: #0a1220; }
-html.dark .btn-primary:hover { background-color: #0284c7; }
+html.dark .btn-primary:hover { background-color: color-mix(in srgb, var(--brand-accent) 78%, #fff); }
 html.dark .shadow-sky-200 { --tw-shadow-color: rgb(14 165 233 / 0.25); }
 html.dark ::placeholder { color: #64748b; }
 

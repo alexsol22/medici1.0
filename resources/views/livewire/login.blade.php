@@ -1,11 +1,7 @@
 <main class="flex min-h-dvh flex-col items-center justify-center bg-slate-50 px-4 py-10">
     <div class="w-full max-w-sm">
-        <a href="{{ url('/') }}" class="mb-8 flex items-center justify-center gap-3" aria-label="Omnia Control">
-            <img src="{{ asset('brand/omnia-control.svg') }}?v=2" alt="" class="h-10 w-10">
-            <span class="leading-none">
-                <span class="block text-sm font-bold tracking-[0.2em] text-slate-800">OMNIA</span>
-                <span class="mt-1 block text-[10px] font-semibold tracking-[0.28em] text-slate-500">CONTROL</span>
-            </span>
+        <a href="{{ url('/') }}" class="mb-8 flex items-center justify-center" aria-label="{{ config('app.name') }}">
+            <x-brand.logo class="h-16 w-auto" alt="" />
         </a>
 
         <section class="rounded-2xl bg-white p-7 shadow-sm ring-1 ring-slate-200 sm:p-8" aria-labelledby="login-title">

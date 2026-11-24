@@ -13,7 +13,7 @@
             'operatori' => 'Conteggio orario operatori',
             default => 'Giornale delle attività',
         }
-        : ($title ?? 'Omnia Control');
+        : ($title ?? config('app.name'));
     $menu = [
         'Home' => [
             ['home', 'Home', 'M3 10.5L12 3l9 7.5M5 9v11h14V9M9 20v-6h6v6', ['super_admin', 'admin', 'cliente', 'operatore']],
@@ -61,9 +61,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <x-ui.pwa />
-    <link rel="icon" type="image/svg+xml" href="{{ asset('brand/omnia-control.svg') }}?v=2">
+    <x-brand.head />
     <x-ui.tema-script />
-    <title>{{ $titoloPagina }} · Omnia Control</title>
+    <title>{{ $titoloPagina }} · {{ config('app.name') }}</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -73,9 +73,10 @@
     <div class="flex min-h-full min-w-0 flex-col">
         <header class="sticky top-0 z-40 border-b border-sky-100 bg-white/80 backdrop-blur">
             <div class="flex h-16 items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8">
-                <a href="{{ url('/') }}" wire:navigate class="flex min-w-0 flex-1 items-center gap-2 font-bold text-slate-800">
-                    <img src="{{ asset('brand/omnia-control.svg') }}?v=2" alt="" class="h-9 w-9 shrink-0">
-                    <span class="truncate">Omnia <span class="text-[#b65d3b]">Control</span></span>
+                <a href="{{ url('/') }}" wire:navigate class="flex min-w-0 flex-1 items-center" aria-label="{{ config('app.name') }}">
+                    <span class="inline-flex items-center rounded-lg bg-[#ffffff] px-1.5 py-1 ring-1 ring-sky-100">
+                        <x-brand.logo class="h-8 w-auto" alt="" />
+                    </span>
                 </a>
 
                 @if ($ruolo === 'operatore')

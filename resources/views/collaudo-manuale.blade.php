@@ -4,17 +4,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <x-ui.pwa />
-    <title>Checklist collaudo manuale (accesso riservato) · Omnia Control</title>
+    <x-brand.head />
+    <title>Checklist collaudo manuale (accesso riservato) · {{ config('app.name') }}</title>
     <style>
         :root {
             color-scheme: light;
             --ink: #263648;
             --muted: #64748b;
             --line: #dce8f0;
-            --blue: #1677a8;
-            --blue-dark: #125d83;
+            --blue: {{ config('brand.colors.link') }};
+            --blue-dark: {{ config('brand.colors.navy') }};
             --blue-pale: #eff8fc;
-            --rust: #b65d3b;
             --green: #18794e;
             --amber: #9a5b08;
             --red: #b42318;
@@ -55,17 +55,7 @@
         }
 
         .brand { display: flex; align-items: center; gap: 11px; font-weight: 750; letter-spacing: -.03em; }
-        .brand-mark {
-            display: grid;
-            width: 38px;
-            height: 38px;
-            place-items: center;
-            border-radius: 12px;
-            background: var(--blue-pale);
-            color: var(--blue);
-            font-size: 19px;
-        }
-        .brand-accent { color: var(--rust); }
+        .brand img { height: 36px; width: auto; }
         .topbar-label { color: var(--muted); font-size: 13px; }
 
         main { width: min(1380px, calc(100% - 32px)); margin: 28px auto 64px; }
@@ -287,8 +277,7 @@
 <body>
     <header class="topbar">
         <div class="brand">
-            <span class="brand-mark" aria-hidden="true">✓</span>
-            <span>Omnia <span class="brand-accent">Control</span></span>
+            <x-brand.logo class="h-9 w-auto" alt="{{ config('app.name') }}" />
         </div>
         <span class="topbar-label">Strumento operativo · Collaudo manuale</span>
     </header>

@@ -24,19 +24,19 @@ class PwaInstallazioneTest extends TestCase
 
         $risposta->assertOk();
         $risposta->assertHeader('Content-Type', 'application/manifest+json');
-        $risposta->assertJsonPath('name', 'Omnia Control');
-        $risposta->assertJsonPath('short_name', 'Omnia');
+        $risposta->assertJsonPath('name', config('app.name'));
+        $risposta->assertJsonPath('short_name', config('brand.short_name'));
         $risposta->assertJsonPath('display', 'standalone');
         $risposta->assertJsonPath('start_url', '/');
-        $risposta->assertJsonPath('icons.0.src', '/brand/icon-192.png');
-        $risposta->assertJsonPath('icons.1.src', '/brand/icon-512.png');
+        $risposta->assertJsonPath('icons.0.src', '/'.config('brand.icons.192'));
+        $risposta->assertJsonPath('icons.1.src', '/'.config('brand.icons.512'));
         $risposta->assertJsonPath('icons.2.purpose', 'maskable');
 
         foreach ([
-            'brand/icon-192.png' => 192,
-            'brand/icon-512.png' => 512,
-            'brand/apple-touch-icon.png' => 180,
-            'brand/icon-maskable-512.png' => 512,
+            config('brand.icons.192') => 192,
+            config('brand.icons.512') => 512,
+            config('brand.icons.apple') => 180,
+            config('brand.icons.maskable') => 512,
         ] as $file => $lato) {
             $percorso = public_path($file);
             $this->assertFileExists($percorso);

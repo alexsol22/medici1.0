@@ -19,7 +19,6 @@ class RecuperaPasswordTest extends TestCase
         parent::setUp();
 
         config([
-            'app.name' => 'Omnia Control',
             'database.default' => 'mysql',
             'database.connections.mysql' => config('database.connections.sqlite'),
         ]);
@@ -61,14 +60,14 @@ class RecuperaPasswordTest extends TestCase
     {
         $html = NotificaHtml::renderizza('Oggetto prova', '<p>Corpo</p>', ['etichetta' => 'Vai', 'url' => 'https://example.test/x']);
 
-        $this->assertStringContainsString(asset('brand/icon-192.png'), $html);
-        $this->assertStringNotContainsString('data:image/png;base64', $html);
-        $this->assertStringContainsString('Omnia', $html);
-        $this->assertStringContainsString('Control', $html);
+        $this->assertMatchesRegularExpression('/src="data:image\/png;base64,[A-Za-z0-9+\/=]+"/', $html);
+        $this->assertStringContainsString('width="440"', $html);
+        $this->assertStringContainsString('height="127"', $html);
+        $this->assertStringContainsString(config('app.name'), $html);
         $this->assertStringNotContainsString('S 420 ITALPOL', $html);
         $this->assertStringNotContainsString('#289aca', $html);
-        $this->assertStringContainsString('#b65d3b', $html);
-        $this->assertStringContainsString('#152B38', $html);
+        $this->assertStringContainsString(config('brand.colors.accent'), $html);
+        $this->assertStringContainsString(config('brand.colors.navy'), $html);
         $this->assertStringContainsString('Top Security Srl', $html);
         $this->assertStringContainsString('Via Grandi n° 4 41044 Campogalliano (MO)', $html);
         $this->assertStringContainsString('P.IVA 0123', $html);
@@ -100,14 +99,12 @@ class RecuperaPasswordTest extends TestCase
             ->assertSee('Il campo utente è obbligatorio.');
     }
 
-    public function test_password_recovery_page_shows_omnia_brand(): void
+    public function test_password_recovery_page_shows_the_configured_brand(): void
     {
         $this->get('/recupera-password')
             ->assertOk()
-            ->assertSee('<title>Recupero password · Omnia Control</title>', false)
-            ->assertSee('brand/omnia-control.svg', false)
-            ->assertSee('OMNIA', false)
-            ->assertSee('CONTROL', false)
+            ->assertSee('<title>Recupero password · '.config('app.name').'</title>', false)
+            ->assertSee(config('brand.logo'), false)
             ->assertSee('Recupera password', false);
     }
 

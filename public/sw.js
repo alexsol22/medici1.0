@@ -1,4 +1,4 @@
-// Rende Omnia Control installabile su Android.
+// Rende l'app installabile su Android.
 // Non intercetta le richieste: login, sessione e Livewire restano quelli del server.
 self.addEventListener('install', () => {
     self.skipWaiting();

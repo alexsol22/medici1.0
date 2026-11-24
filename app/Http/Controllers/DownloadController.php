@@ -232,7 +232,7 @@ class DownloadController extends Controller
      */
     private function logoPdf(): ?string
     {
-        $percorso = public_path('brand/icon-192.png');
+        $percorso = public_path(config('brand.icons.192'));
         if (! is_file($percorso)) {
             return null;
         }

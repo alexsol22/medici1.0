@@ -9,9 +9,9 @@
     <style>
         body { margin: 0; padding: 0; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
         img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
-        a { color: #1677a8; }
+        a { color: {{ $colori['link'] }}; }
         .contenuto p { margin: 0 0 16px; }
-        .contenuto a { color: #1677a8; }
+        .contenuto a { color: {{ $colori['link'] }}; }
         @media only screen and (max-width: 620px) {
             .contenitore { width: 100% !important; }
             .padding { padding-left: 20px !important; padding-right: 20px !important; }
@@ -29,24 +29,15 @@
                     <tr>
                         <td style="background-color:#ffffff; border-radius:16px; border:1px solid #dce8f0; overflow:hidden;">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                                <tr><td style="height:6px; line-height:6px; font-size:0; background-color:#152B38;">&nbsp;</td></tr>
+                                <tr><td style="height:6px; line-height:6px; font-size:0; background-color:{{ $colori['accent'] }};">&nbsp;</td></tr>
                                 <tr>
                                     <td class="padding" align="center" style="padding:28px 40px 0;">
-                                        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                                            <tr>
-                                                <td style="padding-right:12px; vertical-align:middle;">
-                                                    <img src="{{ $logo }}" alt="{{ $app }}" width="48" height="48" style="display:block; width:48px; height:48px; border:0;">
-                                                </td>
-                                                <td style="vertical-align:middle; font-family:Arial, Helvetica, sans-serif; font-size:18px; line-height:22px; font-weight:700; letter-spacing:-0.02em; color:#152B38;">
-                                                    {{ $marca }}@if ($marchio) <span style="color:#b65d3b;">{{ $marchio }}</span>@endif
-                                                </td>
-                                            </tr>
-                                        </table>
+                                        <img src="{{ $logo['src'] }}" alt="{{ $app }}" width="{{ $logo['larghezza'] }}" height="{{ $logo['altezza'] }}" style="display:block; width:220px; max-width:100%; height:auto; border:0;">
                                     </td>
                                 </tr>
                                 <tr>
                                     <td class="padding" style="padding:20px 40px 8px; font-family:Arial, Helvetica, sans-serif;">
-                                        <h1 class="titolo" style="margin:0; font-size:24px; line-height:30px; color:#152B38; font-weight:700;">{{ $oggetto }}</h1>
+                                        <h1 class="titolo" style="margin:0; font-size:24px; line-height:30px; color:{{ $colori['navy'] }}; font-weight:700;">{{ $oggetto }}</h1>
                                     </td>
                                 </tr>
                                 <tr>
@@ -57,7 +48,7 @@
                                 @if ($azione)
                                     <tr>
                                         <td class="padding" align="center" style="padding:8px 40px 24px;">
-                                            <a href="{{ $azione['url'] }}" style="display:inline-block; background-color:#152B38; color:#ffffff; font-family:Arial, Helvetica, sans-serif; font-size:15px; font-weight:700; text-decoration:none; padding:13px 28px; border-radius:10px;">{{ $azione['etichetta'] }}</a>
+                                            <a href="{{ $azione['url'] }}" style="display:inline-block; background-color:{{ $colori['navy'] }}; color:#ffffff; font-family:Arial, Helvetica, sans-serif; font-size:15px; font-weight:700; text-decoration:none; padding:13px 28px; border-radius:10px;">{{ $azione['etichetta'] }}</a>
                                         </td>
                                     </tr>
                                 @endif
@@ -75,7 +66,7 @@
                             @if ($societa['indirizzo']){{ $societa['indirizzo'] }}<br>@endif
                             @if ($societa['telefono'])Tel. {{ $societa['telefono'] }}@endif
                             @if ($societa['telefono'] && $societa['email']) &middot; @endif
-                            @if ($societa['email'])<a href="mailto:{{ $societa['email'] }}" style="color:#1677a8; text-decoration:none;">{{ $societa['email'] }}</a>@endif
+                            @if ($societa['email'])<a href="mailto:{{ $societa['email'] }}" style="color:{{ $colori['link'] }}; text-decoration:none;">{{ $societa['email'] }}</a>@endif
                             @if ($societa['iva'])<br>P.IVA {{ $societa['iva'] }}@endif
                         </td>
                     </tr>

@@ -346,7 +346,7 @@ class PresenzeTest extends TestCase
 
         $response = $this->actingAs($staff)->get(route('presenze'))->assertOk();
 
-        $response->assertSee('<title>Giornale delle attività · Omnia Control</title>', false)
+        $response->assertSee('<title>Giornale delle attività · '.config('app.name').'</title>', false)
             ->assertSee('Giornale delle attività')
             ->assertSee('Ragione Sociale')
             ->assertSee('Sede')

@@ -4,17 +4,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Supertest · Omnia Control</title>
+    <x-brand.head />
+    <title>Supertest · {{ config('app.name') }}</title>
     <style>
         :root {
             color-scheme: light;
             --ink: #263648;
             --muted: #64748b;
             --line: #dce8f0;
-            --blue: #1677a8;
-            --blue-dark: #125d83;
+            --blue: {{ config('brand.colors.link') }};
+            --blue-dark: {{ config('brand.colors.navy') }};
             --blue-pale: #eff8fc;
-            --rust: #b65d3b;
             --green: #18794e;
             --amber: #9a5b08;
             --red: #b42318;
@@ -30,8 +30,7 @@
         button:focus-visible, input:focus-visible { outline: 3px solid #70c3ea; outline-offset: 2px; }
         .topbar { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: rgb(255 255 255 / 94%); backdrop-filter: blur(12px); }
         .brand { display: flex; align-items: center; gap: 11px; font-weight: 750; letter-spacing: -.03em; }
-        .brand-mark { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 12px; background: var(--blue-pale); color: var(--blue); font-size: 18px; }
-        .brand-accent { color: var(--rust); }
+        .brand img { height: 36px; width: auto; }
         .topbar-label { color: var(--muted); font-size: 13px; }
         .shell { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: calc(100vh - 64px); }
         .sidebar { position: sticky; top: 64px; height: calc(100vh - 64px); overflow: auto; padding: 18px 14px 24px; border-right: 1px solid var(--line); background: #fff; }
@@ -93,8 +92,7 @@
 <body>
     <header class="topbar">
         <div class="brand">
-            <span class="brand-mark" aria-hidden="true">✓</span>
-            <span>Omnia <span class="brand-accent">Control</span></span>
+            <x-brand.logo class="h-9 w-auto" alt="{{ config('app.name') }}" />
         </div>
         <span class="topbar-label">/supertest</span>
         <button class="button menu-toggle" id="menu-toggle" type="button">Sezioni</button>

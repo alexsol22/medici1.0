@@ -9,7 +9,7 @@
         body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #222; margin: 0; }
         table { width: 100%; border-collapse: collapse; }
         .intestazione td { vertical-align: middle; }
-        .marca { font-size: 16px; font-weight: bold; color: #152B38; }
+        .marca { font-size: 16px; font-weight: bold; color: {{ config('brand.colors.navy') }}; }
         .medio { margin: 2px 0; }
         .titolo { margin: 14px 0 6px; font-size: 14px; font-weight: bold; }
         .registro th { background: #e6e6e6; text-align: left; padding: 5px; border: 1px solid #bbb; }
