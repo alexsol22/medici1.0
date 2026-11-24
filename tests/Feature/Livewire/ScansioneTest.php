@@ -380,6 +380,88 @@ class ScansioneTest extends TestCase
         $this->assertSame(0, DB::table('tc_gda')->count());
     }
 
+    public function test_turno_notturno_alle_2250_consente_la_scansione_di_ingresso(): void
+    {
+        $this->preparaTurnoNotturno();
+        $this->travelTo('2026-11-23 22:50:00');
+
+        Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)
+            ->assertDontSee('Nessun turno attivo')
+            ->assertSee('22:00')
+            ->assertSee('02:00')
+            ->call('timbra', 'ITALPOL*000001', 45.0567356, 7.6693, false, null)
+            ->assertSee('Inizio turno registrato con successo');
+
+        $this->assertSame('I', DB::table('tc_gda')->where('id_turno', 1)->value('tipo'));
+        $this->assertSame('22:50', DB::table('tc_gda')->where('id_turno', 1)->value('orario'));
+    }
+
+    public function test_turno_notturno_dopo_mezzanotte_consente_la_scansione_di_ingresso(): void
+    {
+        $this->preparaTurnoNotturno();
+        $this->travelTo('2026-11-24 01:30:00');
+
+        Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)
+            ->assertDontSee('Nessun turno attivo')
+            ->call('timbra', 'ITALPOL*000001', 45.0567356, 7.6693, false, null)
+            ->assertSee('Inizio turno registrato con successo');
+
+        $this->assertSame('I', DB::table('tc_gda')->where('id_turno', 1)->value('tipo'));
+        $this->assertSame('01:30', DB::table('tc_gda')->where('id_turno', 1)->value('orario'));
+    }
+
+    public function test_turno_notturno_quindici_minuti_prima_consente_la_scansione(): void
+    {
+        $this->preparaTurnoNotturno();
+        $this->travelTo('2026-11-23 21:45:00');
+
+        Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)
+            ->assertDontSee('Nessun turno attivo')
+            ->call('timbra', 'ITALPOL*000001', 45.0567356, 7.6693, false, null)
+            ->assertSee('Inizio turno registrato con successo');
+
+        $this->assertSame('21:45', DB::table('tc_gda')->value('orario'));
+    }
+
+    public function test_turno_notturno_quindici_minuti_dopo_la_fine_consente_la_scansione(): void
+    {
+        $this->preparaTurnoNotturno();
+        $this->travelTo('2026-11-24 02:15:00');
+
+        Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)
+            ->assertDontSee('Nessun turno attivo')
+            ->call('timbra', 'ITALPOL*000001', 45.0567356, 7.6693, false, null)
+            ->assertSee('Inizio turno registrato con successo');
+
+        $this->assertSame('02:15', DB::table('tc_gda')->value('orario'));
+    }
+
+    public function test_turno_notturno_prima_della_finestra_non_consente_la_scansione(): void
+    {
+        $this->preparaTurnoNotturno();
+        $this->travelTo('2026-11-23 21:44:00');
+
+        Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)
+            ->assertSee('Nessun turno attivo')
+            ->call('timbra', 'ITALPOL*000001', 45.0567356, 7.6693, false, null)
+            ->assertSee('Nessun turno attivo per te in questo momento.');
+
+        $this->assertSame(0, DB::table('tc_gda')->count());
+    }
+
+    public function test_turno_notturno_dopo_la_finestra_non_consente_la_scansione(): void
+    {
+        $this->preparaTurnoNotturno();
+        $this->travelTo('2026-11-24 02:16:00');
+
+        Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)
+            ->assertSee('Nessun turno attivo')
+            ->call('timbra', 'ITALPOL*000001', 45.0567356, 7.6693, false, null)
+            ->assertSee('Nessun turno attivo per te in questo momento.');
+
+        $this->assertSame(0, DB::table('tc_gda')->count());
+    }
+
     public function test_timbratura_normale_non_prende_il_turno_programmato_di_un_altro_operatore(): void
     {
         $this->preparaSede();
@@ -421,6 +503,18 @@ class ScansioneTest extends TestCase
             'distanza' => 100,
         ]);
         DB::table('tc_codici')->insert(['id' => 1, 'codice' => 'ITALPOL*000001', 'stato' => 'A', 'tipo' => 'S', 'id_sede' => 1]);
+    }
+
+    private function preparaTurnoNotturno(): void
+    {
+        $this->preparaTurno();
+        DB::table('tc_turni')->where('id', 1)->update([
+            'data_inizio' => '2026-11-23',
+            'data_fine' => '2026-11-24',
+            'ora_inizio' => '22:00',
+            'ora_fine' => '02:00',
+            'stato' => 'P',
+        ]);
     }
 
     private function preparaTurno(): void

@@ -13,10 +13,10 @@ use Illuminate\Support\Carbon;
 /** Timbratura: porting di Turni::checkTurno / scansionaTurno / apriChiudiTurno / sostituzione (Yii). Il QR deve appartenere alla sede del turno; per il QR sede servono GPS e coordinate della sede. */
 class Timbratura
 {
-    /** Turno dell'operatore valido adesso (finestra ±15 minuti su ora_inizio / ora_fine, come checkTurno). */
+    /** Turno dell'operatore valido adesso: da 15 minuti prima dell'inizio a 15 minuti dopo la fine, anche se il turno attraversa la mezzanotte. */
     public function turnoAttivo(User $operatore): ?Turno
     {
-        $ora = now()->format('H:i');
+        $adesso = now()->startOfMinute();
         $oggi = today()->toDateString();
 
         $turni = Turno::with(['sede.comune', 'sede.provincia', 'cliente'])
@@ -26,23 +26,15 @@ class Timbratura
             ->get();
 
         foreach ($turni as $turno) {
-            if ($turno->stato === 'F') {
+            if ($turno->stato === 'F' || $turno->inizio === null || $turno->fine === null) {
                 continue;
             }
 
-            $fine = date('H:i', strtotime($turno->ora_fine) + 15 * 60);
-            $inizio = date('H:i', strtotime($turno->ora_inizio) - 15 * 60);
+            $apertura = $turno->inizio->copy()->subMinutes(15)->startOfMinute();
+            $chiusura = $turno->fine->copy()->addMinutes(15)->startOfMinute();
 
-            if ($ora <= $fine) {
-                if ($inizio <= $ora) {
-                    return $turno;
-                }
-
-                if ($oggi === $turno->data_fine->toDateString() && $oggi > $turno->data_inizio->toDateString()) {
-                    return $turno;
-                }
-
-                return null;
+            if ($adesso->between($apertura, $chiusura)) {
+                return $turno;
             }
         }
 
