@@ -72,7 +72,7 @@ class Scansione extends Component
     }
 
     /**
-     * @return array{ingresso: ?string, fine: ?string, passaggi: Collection<int, array{titolo: string, ora: ?string}>}|null
+     * @return array{ingresso: ?array{ora: ?string, ritardo: ?string, nota: ?string}, fine: ?array{ora: ?string, ritardo: ?string, nota: ?string}, passaggi: Collection<int, array{titolo: string, ora: ?string, ritardo: ?string, nota: ?string}>}|null
      */
     private function progressoTurno(?Turno $turno): ?array
     {
@@ -84,12 +84,30 @@ class Scansione extends Component
         $presenze = $turno->presenze;
 
         return [
-            'ingresso' => $presenze->firstWhere('tipo', Gda::INIZIO)?->rilevata_at?->format('H:i'),
-            'fine' => $presenze->firstWhere('tipo', Gda::FINE)?->rilevata_at?->format('H:i'),
+            'ingresso' => $this->voceStorico($presenze->firstWhere('tipo', Gda::INIZIO)),
+            'fine' => $this->voceStorico($presenze->firstWhere('tipo', Gda::FINE)),
             'passaggi' => $presenze->where('tipo', Gda::PASSAGGIO)->map(fn (Gda $presenza): array => [
                 'titolo' => $presenza->postazione?->titolo ?? 'Passaggio',
-                'ora' => $presenza->rilevata_at?->format('H:i'),
+                ...$this->voceStorico($presenza),
             ])->values(),
+        ];
+    }
+
+    /**
+     * @return array{ora: ?string, ritardo: ?string, nota: ?string}|null
+     */
+    private function voceStorico(?Gda $presenza): ?array
+    {
+        if ($presenza === null) {
+            return null;
+        }
+
+        $minuti = $presenza->ritardo_minuti;
+
+        return [
+            'ora' => $presenza->rilevata_at?->format('H:i'),
+            'ritardo' => $minuti === null ? null : ($minuti === 0 ? 'Puntuale' : ($minuti > 0 ? '+'.$minuti.' min' : $minuti.' min')),
+            'nota' => $presenza->note_operatore ?: null,
         ];
     }
 

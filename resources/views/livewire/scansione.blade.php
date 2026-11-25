@@ -14,7 +14,7 @@
                     <img src="{{ $fotoSede }}" alt="Foto di {{ $turno->sede->descrizione }}" class="absolute inset-0 h-full w-full object-cover">
                 </div>
             @endif
-            <div class="px-4 pb-4 pt-4 text-left">
+            <div class="px-4 py-4 text-left">
                 @unless ($fotoSede)
                     <div class="mb-4 flex h-28 items-center justify-center rounded-2xl bg-sky-50 text-sky-300 ring-1 ring-sky-100">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -24,20 +24,6 @@
                 @endunless
                 <p class="text-sm font-medium text-slate-500">{{ $turno->sede->descrizione }}</p>
                 <p class="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-slate-800">{{ $turno->inizio->format('H:i') }} – {{ $turno->fine->format('H:i') }}</p>
-                <div class="py-4" aria-hidden="true"><div class="h-px bg-sky-200"></div></div>
-                <div class="grid grid-cols-2 gap-x-4">
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Ingresso</p>
-                        <p @class(['mt-1 text-base font-semibold tabular-nums', 'text-slate-800' => $progresso['ingresso'], 'text-slate-500' => ! $progresso['ingresso']])>{{ $progresso['ingresso'] ?? 'Da fare' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Fine</p>
-                        <p @class(['mt-1 text-base font-semibold tabular-nums', 'text-slate-800' => $progresso['fine'], 'text-slate-500' => ! $progresso['fine']])>{{ $progresso['fine'] ?? 'Da fare' }}</p>
-                    </div>
-                </div>
-                @foreach ($progresso['passaggi'] as $passaggio)
-                    <p class="mt-2 text-sm text-slate-600">{{ $passaggio['titolo'] }} · {{ $passaggio['ora'] }}</p>
-                @endforeach
             </div>
         @else
             <div class="space-y-1 px-4 py-6 text-left">
@@ -114,6 +100,49 @@
         @endunless
         </div>
 
+        @if ($turno && $progresso)
+            <div x-show="!camera && !codice" class="card p-5 text-left">
+                <h2 class="text-lg font-bold text-slate-800">Storico</h2>
+                <ol class="relative mt-5 space-y-7 border-l-2 border-sky-100 pl-7">
+                    <li class="relative">
+                        <span @class(['absolute -left-[37px] flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold text-white ring-4 ring-white', 'bg-emerald-500' => $progresso['ingresso'], 'bg-slate-300' => ! $progresso['ingresso']])>{{ $progresso['ingresso'] ? '✓' : '1' }}</span>
+                        <p class="text-base font-semibold text-slate-800">Ingresso</p>
+                        <p class="mt-1 text-sm text-slate-600">Previsto {{ $turno->inizio->format('H:i') }}</p>
+                        @if ($progresso['ingresso'])
+                            <p class="mt-1 text-base text-emerald-700">Timbrato alle {{ $progresso['ingresso']['ora'] }}@if ($progresso['ingresso']['ritardo'] !== null) · {{ $progresso['ingresso']['ritardo'] }}@endif</p>
+                            @if ($progresso['ingresso']['nota'])
+                                <p class="mt-1 break-words text-sm text-slate-600">{{ $progresso['ingresso']['nota'] }}</p>
+                            @endif
+                        @else
+                            <p class="mt-1 text-sm text-slate-500">In attesa di timbratura</p>
+                        @endif
+                    </li>
+                    @foreach ($progresso['passaggi'] as $passaggio)
+                        <li class="relative">
+                            <span class="absolute -left-[33px] mt-1 h-4 w-4 rounded-full bg-sky-400 ring-4 ring-white"></span>
+                            <p class="break-words text-base font-medium text-slate-700">{{ $passaggio['titolo'] }}</p>
+                            <p class="mt-1 text-sm text-slate-600">{{ $passaggio['ora'] }}@if ($passaggio['ritardo'] !== null) · {{ $passaggio['ritardo'] }}@endif</p>
+                            @if ($passaggio['nota'])
+                                <p class="mt-1 break-words text-sm text-slate-600">{{ $passaggio['nota'] }}</p>
+                            @endif
+                        </li>
+                    @endforeach
+                    <li class="relative">
+                        <span @class(['absolute -left-[37px] flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold text-white ring-4 ring-white', 'bg-emerald-500' => $progresso['fine'], 'bg-slate-300' => ! $progresso['fine']])>{{ $progresso['fine'] ? '✓' : '2' }}</span>
+                        <p class="text-base font-semibold text-slate-800">Uscita</p>
+                        <p class="mt-1 text-sm text-slate-600">Prevista {{ $turno->fine->format('H:i') }}</p>
+                        @if ($progresso['fine'])
+                            <p class="mt-1 text-base text-emerald-700">Timbrata alle {{ $progresso['fine']['ora'] }}@if ($progresso['fine']['ritardo'] !== null) · {{ $progresso['fine']['ritardo'] }}@endif</p>
+                            @if ($progresso['fine']['nota'])
+                                <p class="mt-1 break-words text-sm text-slate-600">{{ $progresso['fine']['nota'] }}</p>
+                            @endif
+                        @else
+                            <p class="mt-1 text-sm text-slate-500">{{ $progresso['ingresso'] ? 'Turno in corso' : 'Dopo l\'ingresso' }}</p>
+                        @endif
+                    </li>
+                </ol>
+            </div>
+        @endif
     </div>
 
     @if ($risultato)
