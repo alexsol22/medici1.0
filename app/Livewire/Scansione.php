@@ -37,6 +37,9 @@ class Scansione extends Component
         $this->risultato = $sostituzione
             ? $t->sostituisci($user, $codice, $lat, $lng, $note)
             : $t->scansiona($user, $codice, $lat, $lng, $note);
+        if ($note !== null && ($this->risultato['ok'] ?? false)) {
+            $this->risultato['nota'] = $note;
+        }
         $this->esitoId++;
 
         $this->nota = '';
@@ -58,10 +61,6 @@ class Scansione extends Component
         return view('livewire.scansione', [
             'turno' => $turno,
             'fotoSede' => $this->urlFotoSede($turno),
-            'presenze' => $turno ? $turno->presenze()->with('postazione')->orderBy('data')->orderBy('orario')->get() : collect(),
-            'prossimi' => Turno::with('sede')->where('id_operatore', $user->id)
-                ->whereRaw("CONCAT(data_inizio,' ',ora_inizio) > ?", [now()->format('Y-m-d H:i')])
-                ->orderBy('data_inizio')->orderBy('ora_inizio')->limit(5)->get(),
         ]);
     }
 

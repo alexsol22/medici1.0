@@ -135,7 +135,7 @@ class ScansioneTest extends TestCase
         $this->preparaTurno();
 
         Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)
-            ->assertSee('Ora inizia il turno')
+            ->assertSee('Inizia il turno')
             ->call('timbra', 'ITALPOL*000001', 45.0567356, 7.6693, false, null)
             ->assertSee('Turno iniziato')
             ->assertSee('Inizio turno registrato con successo')
@@ -145,8 +145,7 @@ class ScansioneTest extends TestCase
             ->assertSee('Turno iniziato')
             ->call('nascondiEsito', 1)
             ->assertDontSee('Turno iniziato')
-            ->assertSee('Ora chiudi il turno')
-            ->assertSee('Timbrato alle');
+            ->assertSee('Chiudi il turno');
     }
 
     public function test_nota_oltre_255_caratteri_non_registra_la_timbratura(): void
@@ -314,7 +313,7 @@ class ScansioneTest extends TestCase
 
         Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)
             ->assertSee('Sostituisci turno')
-            ->assertSee('Scansiona il QR principale della sede per la sostituzione del turno.');
+            ->assertSee('Inquadra il QR della sede.');
     }
 
     public function test_sostituzione_assegna_il_primo_turno_programmato_della_sede_e_registra_lingresso(): void

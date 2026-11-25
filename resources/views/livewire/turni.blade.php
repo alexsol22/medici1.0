@@ -51,6 +51,19 @@
             <span class="text-xs font-medium text-slate-500">{{ $da || $a ? '(intervallo selezionato)' : '(tutti i periodi)' }}</span>
         @endif
     </h1>
+    @if ($timelineTurno)
+        <div class="card p-4">
+            <h2 class="text-lg font-bold text-slate-800">Turno di oggi</h2>
+            <p class="mt-1 text-base font-semibold text-slate-700">{{ $timelineTurno['sede'] }} · {{ $timelineTurno['orario'] }}</p>
+            <ul class="mt-3 space-y-1 text-base text-slate-700">
+                <li>Ingresso: {{ $timelineTurno['ingresso'] }}</li>
+                @foreach ($timelineTurno['passaggi'] as $passaggio)
+                    <li>{{ $passaggio['titolo'] }}: {{ $passaggio['ora'] }}</li>
+                @endforeach
+                <li>Uscita: {{ $timelineTurno['uscita'] }}</li>
+            </ul>
+        </div>
+    @endif
     <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-white p-3 shadow-sm sm:p-4">
       <div class="flex min-w-0 flex-wrap items-center gap-2">
         <x-ui.filtri title="Cerca" trigger-label="Cerca" :values="array_merge(

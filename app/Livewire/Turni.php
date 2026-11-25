@@ -813,6 +813,26 @@ class Turni extends Component
 
         $clienti = $this->clientiVisibili()->orderBy('ragione_sociale')->get(['id', 'ragione_sociale']);
         $turnoDaEliminare = $this->eliminaId ? $this->query()->find($this->eliminaId) : null;
+        $turnoInCorso = auth()->user()->isOperatore()
+            ? app(Timbratura::class)->turnoAttivo(auth()->user())
+            : null;
+        $turnoInCorso?->load(['presenze' => fn ($query) => $query->with('postazione')->orderBy('data')->orderBy('orario')]);
+        $timelineTurno = null;
+        if ($turnoInCorso) {
+            $presenze = $turnoInCorso->presenze;
+            $ingresso = $presenze->firstWhere('tipo', Gda::INIZIO);
+            $uscita = $presenze->firstWhere('tipo', Gda::FINE);
+            $timelineTurno = [
+                'sede' => $turnoInCorso->sede?->descrizione,
+                'orario' => $turnoInCorso->inizio->format('H:i').' – '.$turnoInCorso->fine->format('H:i'),
+                'ingresso' => $ingresso ? 'timbrato alle '.$ingresso->rilevata_at->format('H:i') : 'da fare',
+                'uscita' => $uscita ? 'timbrata alle '.$uscita->rilevata_at->format('H:i') : 'da fare',
+                'passaggi' => $presenze->where('tipo', Gda::PASSAGGIO)->map(fn ($p) => [
+                    'titolo' => $p->postazione?->titolo ?? 'Passaggio',
+                    'ora' => $p->rilevata_at->format('H:i'),
+                ])->values(),
+            ];
+        }
 
         return view('livewire.turni', [
             'totaleOreAgenda' => $this->totaleOreAgenda(),
@@ -834,6 +854,7 @@ class Turni extends Component
             'finePrimaDellInizio' => $finePrimaDellInizio,
             'giorniSettimana' => [1 => 'Lun', 2 => 'Mar', 3 => 'Mer', 4 => 'Gio', 5 => 'Ven', 6 => 'Sab', 7 => 'Dom'],
             'turnoDaEliminare' => $turnoDaEliminare,
+            'timelineTurno' => $timelineTurno,
         ]);
     }
 }
