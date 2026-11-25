@@ -36,11 +36,12 @@
         </div>
 
         <div class="space-y-4 border-t border-sky-100 p-4 sm:space-y-5 sm:p-6">
-            <div x-show="camera" x-cloak class="relative mx-auto w-full max-w-xl overflow-hidden rounded-2xl bg-slate-900">
-                <video x-ref="video" playsinline muted class="aspect-square w-full object-cover"></video>
-                <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div x-ref="inquadratura" x-show="camera" x-cloak class="relative mx-auto w-full max-w-xl overflow-hidden rounded-2xl bg-sky-50">
+                <video playsinline webkit-playsinline autoplay muted class="aspect-square w-full bg-slate-900 object-cover"></video>
+                <div class="pointer-events-none absolute inset-0 flex items-center justify-center" x-show="!preparazione">
                     <div class="h-2/3 w-2/3 rounded-3xl border-4 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,.45)]"></div>
                 </div>
+                <p x-show="preparazione" x-cloak class="absolute inset-0 z-10 flex items-center justify-center bg-sky-50 px-6 text-center text-lg font-semibold text-slate-700">Attendi, apro la fotocamera…</p>
             </div>
 
             <div x-show="errore" x-cloak class="rounded-xl bg-rose-50 p-4 text-base leading-relaxed text-rose-800 ring-1 ring-rose-200" x-text="errore"></div>
@@ -59,7 +60,7 @@
             </div>
 
             <button type="button" class="btn-primary min-h-14 w-full !px-5 !py-4 text-base sm:text-lg" x-show="!camera && !codice" @click="avvia()" :disabled="gps !== 'ok' || (!sostituzione && !{{ $turno ? 'true' : 'false' }})">
-                <span class="inline-flex items-center justify-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/></svg> Scansiona il QR</span>
+                <span class="inline-flex items-center justify-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/></svg> <span x-text="errore ? 'Riprova' : 'Scansiona il QR'">Scansiona il QR</span></span>
             </button>
             <button type="button" class="btn-soft min-h-12 w-full text-base" x-show="!camera && !codice && !sostituzione" @click="apriSostituzione()">Sostituisci turno</button>
             <button type="button" class="btn-soft min-h-12 w-full text-base" x-show="sostituzione && !camera && !codice" x-cloak @click="chiudiSostituzione()">Chiudi</button>
