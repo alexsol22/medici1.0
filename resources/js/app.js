@@ -43,7 +43,7 @@ collegaSelect2Qr();
 document.addEventListener('alpine:init', () => {
     window.Alpine.data('scanner', () => ({
         camera: false, stream: null, caricamento: false, errore: null,
-        preparazione: false, apertura: false, sospesa: false,
+        preparazione: false, apertura: false, sospesa: false, letto: false,
         lettura: 0, riavvii: 0,
         gps: 'attesa', lat: null, lng: null, codice: null, sostituzione: false,
 
@@ -163,7 +163,9 @@ document.addEventListener('alpine:init', () => {
             this.apertura = true;
             this.lettura++;
             const lettura = this.lettura;
+            const apertoAlle = Date.now();
             this.camera = true;
+            this.letto = false;
             this.preparazione = true;
             this.rilascia();
             await this.$nextTick();
@@ -208,6 +210,13 @@ document.addEventListener('alpine:init', () => {
                     this.rilascia();
                     await this.attesa(200);
                     continue;
+                }
+
+                const resta = 800 - (Date.now() - apertoAlle);
+                if (resta > 0) await this.attesa(resta);
+                if (this.lettura !== lettura) {
+                    this.rilascia();
+                    return;
                 }
 
                 this.preparazione = false;
@@ -312,7 +321,7 @@ document.addEventListener('alpine:init', () => {
             const track = this.stream?.getVideoTracks()[0];
             if (!track) return;
             track.addEventListener('ended', () => {
-                if (this.lettura !== lettura || !this.camera || this.codice) return;
+                if (this.lettura !== lettura || !this.camera || this.codice || this.letto) return;
                 this.riapri();
             });
         },
@@ -328,7 +337,7 @@ document.addEventListener('alpine:init', () => {
         },
 
         sospendi() {
-            if (!this.camera || this.codice) return;
+            if (!this.camera || this.codice || this.letto) return;
             this.lettura++;
             this.apertura = false;
             this.preparazione = true;
@@ -342,14 +351,14 @@ document.addEventListener('alpine:init', () => {
         },
 
         riprendi() {
-            if (!this.sospesa || !this.camera || this.codice) return;
+            if (!this.sospesa || !this.camera || this.codice || this.letto) return;
             this.sospesa = false;
             this.riavvii = 0;
             this.accendi();
         },
 
         riprendiDopoBlocco() {
-            if (!this.camera || this.codice) return;
+            if (!this.camera || this.codice || this.letto) return;
             this.sospesa = false;
             this.apertura = false;
             this.riavvii = 0;
@@ -363,6 +372,7 @@ document.addEventListener('alpine:init', () => {
             this.preparazione = false;
             this.apertura = false;
             this.camera = false;
+            this.letto = false;
             this.sospesa = false;
             this.rilascia();
             const video = this.videoAttivo();
@@ -410,9 +420,7 @@ document.addEventListener('alpine:init', () => {
                 }
                 if (this.lettura !== lettura || this.codice) return;
                 if (valore) {
-                    this.ferma();
-                    navigator.vibrate?.(80);
-                    this.codice = valore;
+                    this.riconosci(valore, lettura);
                     return;
                 }
                 requestAnimationFrame(passo);
@@ -420,9 +428,27 @@ document.addEventListener('alpine:init', () => {
             passo();
         },
 
+        async riconosci(valore, lettura) {
+            if (this.codice || this.lettura !== lettura) return;
+            this.lettura++;
+            const conferma = this.lettura;
+            this.preparazione = false;
+            this.letto = true;
+            this.rilascia();
+            navigator.vibrate?.(80);
+            await this.attesa(1200);
+            if (this.lettura !== conferma) return;
+            this.camera = false;
+            this.letto = false;
+            this.apertura = false;
+            this.sospesa = false;
+            this.codice = valore;
+        },
+
         ferma() {
             this.lettura++;
             this.camera = false;
+            this.letto = false;
             this.preparazione = false;
             this.apertura = false;
             this.sospesa = false;
