@@ -624,4 +624,25 @@ class TurniGestioneTest extends TestCase
 
         $this->assertSame(6, DB::table('tc_turni')->count());
     }
+
+    public function test_nuovo_turno_mostra_le_ore_totali_mentre_si_scelgono_data_e_orario(): void
+    {
+        Livewire::actingAs(User::findOrFail(1))->test(Turni::class)
+            ->call('nuovo')
+            ->set('f.data_inizio', '2026-11-20')
+            ->set('f.ora_inizio', '08:00')
+            ->set('f.data_fine', '2026-11-20')
+            ->set('f.ora_fine', '16:00')
+            ->assertSeeInOrder(['Ore totali:', '8'])
+            ->set('f.ora_fine', '12:30')
+            ->assertSeeInOrder(['Ore totali:', '4.5'])
+            ->set('f.ora_fine', '12:20')
+            ->assertSeeInOrder(['Ore totali:', '4.25'])
+            ->set('f.data_fine', '2026-11-21')
+            ->set('f.ora_fine', '06:00')
+            ->set('f.ora_inizio', '22:00')
+            ->assertSeeInOrder(['Ore totali:', '8'])
+            ->set('f.data_fine', '2026-11-20')
+            ->assertDontSee('Ore totali:');
+    }
 }

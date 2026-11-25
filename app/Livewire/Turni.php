@@ -763,10 +763,14 @@ class Turni extends Component
         $disponibili = collect();
         $sediForm = collect();
         $finePrimaDellInizio = false;
+        $oreTurno = null;
         if ($this->modal) {
             $sediForm = $this->sediVisibili()->where('id_cliente', $this->f['cliente_id'] ?: 0)->orderBy('descrizione')->get(['id', 'descrizione']);
             $intervallo = $this->intervallo();
             $finePrimaDellInizio = $intervallo !== null && $intervallo[1]->lte($intervallo[0]);
+            if ($intervallo !== null && $intervallo[1]->gt($intervallo[0])) {
+                $oreTurno = $this->formatOre(Calcoli::ore($intervallo[0], $intervallo[1]));
+            }
             if ($intervallo !== null && $intervallo[0]->ne($intervallo[1])) {
                 [$da, $a] = $intervallo[0]->lt($intervallo[1])
                     ? [$intervallo[0], $intervallo[1]]
@@ -852,6 +856,7 @@ class Turni extends Component
             'sediForm' => $sediForm,
             'disponibili' => $disponibili,
             'finePrimaDellInizio' => $finePrimaDellInizio,
+            'oreTurno' => $oreTurno,
             'giorniSettimana' => [1 => 'Lun', 2 => 'Mar', 3 => 'Mer', 4 => 'Gio', 5 => 'Ven', 6 => 'Sab', 7 => 'Dom'],
             'turnoDaEliminare' => $turnoDaEliminare,
             'timelineTurno' => $timelineTurno,
