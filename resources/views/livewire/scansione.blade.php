@@ -28,14 +28,26 @@
         @elseif ($turno)
             @php $inCorso = $turno->stato === 'I'; @endphp
             @if ($fotoSede)
-                <div class="flex justify-center bg-sky-50">
-                    <img src="{{ $fotoSede }}" alt="Foto di {{ $turno->sede->descrizione }}" class="max-h-20 w-auto object-contain">
+                <div class="relative h-64 bg-sky-100 sm:h-72">
+                    <img src="{{ $fotoSede }}" alt="Foto di {{ $turno->sede->descrizione }}" class="h-full w-full object-cover">
+                    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 via-slate-950/35 to-transparent px-5 pt-16 pb-4">
+                        <p class="truncate text-lg font-semibold text-white">{{ $turno->sede->descrizione }}</p>
+                    </div>
+                </div>
+            @else
+                <div class="flex h-40 items-center justify-center bg-sky-50 text-sky-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4M9 10h.01M12 10h.01M15 10h.01M9 13h.01M12 13h.01M15 13h.01"/>
+                    </svg>
                 </div>
             @endif
-            <div class="space-y-2 px-5 py-5 text-center">
-                <h2 class="text-3xl font-extrabold leading-tight text-slate-800">{{ $inCorso ? 'Chiudi il turno' : 'Inizia il turno' }}</h2>
-                <p class="text-4xl font-extrabold tabular-nums text-slate-800">{{ $turno->inizio->format('H:i') }} – {{ $turno->fine->format('H:i') }}</p>
-                <p class="text-base font-medium text-slate-600">{{ $turno->sede->descrizione }}</p>
+            <div class="space-y-1 px-5 pt-5 pb-2 text-center">
+                <p class="text-sm font-bold uppercase tracking-wide {{ $inCorso ? 'text-orange-700' : 'text-emerald-700' }}">{{ $inCorso ? 'Uscita' : 'Ingresso' }}</p>
+                <h2 class="text-3xl font-extrabold leading-tight text-slate-900">{{ $inCorso ? 'Chiudi il turno' : 'Inizia il turno' }}</h2>
+                <p class="text-5xl font-extrabold tracking-tight tabular-nums text-slate-900">{{ $turno->inizio->format('H:i') }} – {{ $turno->fine->format('H:i') }}</p>
+                @unless ($fotoSede)
+                    <p class="pt-1 text-base font-medium text-slate-600">{{ $turno->sede->descrizione }}</p>
+                @endunless
             </div>
         @else
             <div class="space-y-1 px-5 py-6 text-center">
@@ -47,7 +59,7 @@
         </div>
 
         @unless (($risultato['ok'] ?? false) === true)
-        <div class="space-y-4 border-t border-sky-100 p-4 sm:space-y-5 sm:p-6">
+        <div class="space-y-4 p-4 sm:p-5">
             <div x-ref="inquadratura" x-show="camera" x-cloak class="relative mx-auto w-full max-w-xl overflow-hidden rounded-2xl bg-sky-50">
                 <video playsinline webkit-playsinline autoplay muted class="aspect-square w-full bg-slate-900 object-cover"></video>
                 <div class="pointer-events-none absolute inset-0 flex items-center justify-center" x-show="!preparazione && !letto">
