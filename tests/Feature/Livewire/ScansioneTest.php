@@ -134,6 +134,8 @@ class ScansioneTest extends TestCase
     {
         $this->preparaTurno();
 
+        $this->actingAs(User::findOrFail(1))->get(route('scansione'))->assertSee('Timbra entrata');
+
         Livewire::actingAs(User::findOrFail(1))->test(Scansione::class)
             ->assertSee('Inizia il turno')
             ->call('timbra', 'ITALPOL*000001', 45.0567356, 7.6693, false, null)
@@ -146,6 +148,8 @@ class ScansioneTest extends TestCase
             ->call('nascondiEsito', 1)
             ->assertDontSee('Turno iniziato')
             ->assertSee('Chiudi il turno');
+
+        $this->actingAs(User::findOrFail(1))->get(route('scansione'))->assertSee('Timbra uscita');
     }
 
     public function test_nota_oltre_255_caratteri_non_registra_la_timbratura(): void

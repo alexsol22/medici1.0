@@ -145,6 +145,30 @@ html.dark ::placeholder { color: #64748b; }
 
 [x-cloak] { display: none !important; }
 
+@keyframes esito-fondo {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes esito-scheda {
+    from { opacity: 0; transform: translateY(1.5rem) scale(.96); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes esito-segno {
+    0% { opacity: 0; transform: scale(.3); }
+    70% { opacity: 1; transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+
+.esito-fondo { animation: esito-fondo .2s ease-out both; }
+.esito-scheda { animation: esito-scheda .42s cubic-bezier(.16, 1, .3, 1) .04s both; }
+.esito-segno { animation: esito-segno .5s cubic-bezier(.16, 1, .3, 1) .16s both; }
+
+@media (prefers-reduced-motion: reduce) {
+    .esito-fondo, .esito-scheda, .esito-segno { animation: none; }
+}
+
 /* Su iPhone un campo sotto i 16px ingrandisce tutta la pagina e lo zoom resta cambiando funzione.
    Il doppio tap fa lo stesso. Il pinch volontario resta disponibile. */
 html {

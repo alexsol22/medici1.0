@@ -6,11 +6,9 @@ use App\Models\Legacy\Turno;
 use App\Services\Timbratura;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts::app')]
-#[Title('Timbra')]
 class Scansione extends Component
 {
     public ?array $risultato = null;
@@ -57,11 +55,16 @@ class Scansione extends Component
         $user = auth()->user();
 
         $turno = $t->turnoAttivo($user);
+        $titolo = match (true) {
+            $turno === null => 'Timbra',
+            $turno->stato === 'I' => 'Timbra uscita',
+            default => 'Timbra entrata',
+        };
 
         return view('livewire.scansione', [
             'turno' => $turno,
             'fotoSede' => $this->urlFotoSede($turno),
-        ]);
+        ])->title($titolo);
     }
 
     /**

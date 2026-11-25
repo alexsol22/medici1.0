@@ -436,7 +436,7 @@ document.addEventListener('alpine:init', () => {
             this.letto = true;
             this.rilascia();
             navigator.vibrate?.(80);
-            await this.attesa(1200);
+            await this.attesa(3000);
             if (this.lettura !== conferma) return;
             this.camera = false;
             this.letto = false;

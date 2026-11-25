@@ -195,7 +195,9 @@
             <main class="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
                 @if (isset($title) && ! $paginaPresenze && ! request()->routeIs('turni', 'miei-turni'))
                     <h1 @class([
-                        'mb-6 text-2xl font-bold tracking-tight text-slate-800',
+                        'font-bold tracking-tight text-slate-800',
+                        'mx-auto mb-4 w-full max-w-xl px-4 text-left text-xl sm:mb-5 sm:text-2xl' => request()->routeIs('scansione'),
+                        'mb-6 text-2xl' => ! request()->routeIs('scansione'),
                         'mx-auto w-full max-w-4xl' => $titoloPagina === 'Impostazioni',
                         'mx-auto w-full max-w-6xl' => $titoloPagina === 'Generatore QR',
                     ])>{{ $titoloPagina }}</h1>

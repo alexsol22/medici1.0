@@ -2,55 +2,30 @@
     <div class="space-y-4">
         <div class="card overflow-hidden">
         <div x-show="!camera && !codice">
-        <div x-show="sostituzione" x-cloak class="space-y-2 px-5 py-6 text-center sm:px-8">
+        <div x-show="sostituzione" x-cloak class="space-y-2 px-4 py-6 text-left">
             <p class="text-xl font-semibold text-slate-800">Sostituisci turno</p>
             <p class="text-base text-slate-600">Inquadra il QR della sede.</p>
         </div>
         <div x-show="!sostituzione">
-        @if (($risultato['ok'] ?? false) === true)
-            @php
-                $esito = match ($risultato['tipo'] ?? '') {
-                    'I' => ['Turno iniziato', 'bg-emerald-600'],
-                    'F' => ['Turno chiuso', 'bg-sky-700'],
-                    'P' => ['Passaggio registrato', 'bg-sky-600'],
-                    default => ['Timbratura segnata', 'bg-emerald-600'],
-                };
-            @endphp
-            <div wire:key="esito-{{ $esitoId }}" role="status" class="space-y-3 px-5 py-6 text-center text-white sm:px-8 {{ $esito[1] }}">
-                <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-3xl font-bold text-emerald-600">✓</span>
-                <h2 class="text-3xl font-extrabold leading-tight">{{ $esito[0] }}</h2>
-                <p class="text-base leading-relaxed text-white/90">{{ $risultato['message'] }}</p>
-                @if (! empty($risultato['nota']))
-                    <p class="text-base leading-relaxed text-white/90">{{ $risultato['nota'] }}</p>
-                @endif
-                <button type="button" wire:click="nascondiEsito({{ $esitoId }})" class="inline-flex min-h-14 w-full items-center justify-center rounded-xl bg-white px-4 text-lg font-semibold text-slate-800">Ho capito</button>
-            </div>
-        @elseif ($turno)
-            @php $inCorso = $turno->stato === 'I'; @endphp
+        @if ($turno)
             @if ($fotoSede)
-                <div class="relative h-64 bg-sky-100 sm:h-72">
-                    <img src="{{ $fotoSede }}" alt="Foto di {{ $turno->sede->descrizione }}" class="h-full w-full object-cover">
-                    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 via-slate-950/35 to-transparent px-5 pt-16 pb-4">
-                        <p class="truncate text-lg font-semibold text-white">{{ $turno->sede->descrizione }}</p>
-                    </div>
-                </div>
-            @else
-                <div class="flex h-40 items-center justify-center bg-sky-50 text-sky-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4M9 10h.01M12 10h.01M15 10h.01M9 13h.01M12 13h.01M15 13h.01"/>
-                    </svg>
+                <div class="relative aspect-[16/9] max-h-64 w-full bg-sky-100">
+                    <img src="{{ $fotoSede }}" alt="Foto di {{ $turno->sede->descrizione }}" class="absolute inset-0 h-full w-full object-cover">
                 </div>
             @endif
-            <div class="space-y-1 px-5 pt-5 pb-2 text-center">
-                <p class="text-sm font-bold uppercase tracking-wide {{ $inCorso ? 'text-orange-700' : 'text-emerald-700' }}">{{ $inCorso ? 'Uscita' : 'Ingresso' }}</p>
-                <h2 class="text-3xl font-extrabold leading-tight text-slate-900">{{ $inCorso ? 'Chiudi il turno' : 'Inizia il turno' }}</h2>
-                <p class="text-5xl font-extrabold tracking-tight tabular-nums text-slate-900">{{ $turno->inizio->format('H:i') }} – {{ $turno->fine->format('H:i') }}</p>
+            <div class="px-4 pt-4 text-left">
                 @unless ($fotoSede)
-                    <p class="pt-1 text-base font-medium text-slate-600">{{ $turno->sede->descrizione }}</p>
+                    <div class="mb-4 flex h-28 items-center justify-center rounded-2xl bg-sky-50 text-sky-300 ring-1 ring-sky-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4M9 10h.01M12 10h.01M15 10h.01M9 13h.01M12 13h.01M15 13h.01"/>
+                        </svg>
+                    </div>
                 @endunless
+                <p class="text-sm font-medium text-slate-500">{{ $turno->sede->descrizione }}</p>
+                <p class="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-slate-800">{{ $turno->inizio->format('H:i') }} – {{ $turno->fine->format('H:i') }}</p>
             </div>
         @else
-            <div class="space-y-1 px-5 py-6 text-center">
+            <div class="space-y-1 px-4 py-6 text-left">
                 <p class="text-xl font-semibold text-slate-800">Nessun turno attivo</p>
                 <p class="text-base text-slate-600">Da 15 minuti prima dell'inizio.</p>
             </div>
@@ -66,25 +41,25 @@
                     <div class="h-2/3 w-2/3 rounded-3xl border-4 border-white/80 shadow-[0_0_0_999px_rgba(15,23,42,.45)]"></div>
                 </div>
                 <p x-show="preparazione" x-cloak class="absolute inset-0 z-10 flex items-center justify-center bg-sky-50 px-6 text-center text-lg font-semibold text-slate-700">Attendi, apro la fotocamera…</p>
-                <div x-show="letto" x-cloak class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-emerald-600 px-6 text-center text-white">
-                    <span class="flex h-16 w-16 items-center justify-center rounded-full bg-white text-3xl font-bold text-emerald-600">✓</span>
+                <div x-show="letto" x-cloak class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#059669] px-6 text-center text-white">
+                    <span class="flex h-16 w-16 items-center justify-center rounded-full bg-[#ffffff] text-3xl font-bold text-[#047857]">✓</span>
                     <span class="text-2xl font-bold">QR letto</span>
                 </div>
             </div>
 
-            <p x-show="camera && !preparazione && !letto" x-cloak class="text-center text-lg font-semibold text-slate-800">Inquadra il QR</p>
+            <p x-show="camera && !preparazione && !letto" x-cloak class="text-left text-base font-semibold text-slate-800">Inquadra il QR</p>
 
             <div x-show="errore" x-cloak class="rounded-xl bg-rose-50 p-4 text-base leading-relaxed text-rose-800 ring-1 ring-rose-200" x-text="errore"></div>
 
             <div x-show="codice" x-cloak class="space-y-3 text-left">
-                <p class="text-center text-xl font-bold text-slate-800" x-show="!sostituzione">
+                <p class="text-left text-xl font-bold text-slate-800" x-show="!sostituzione">
                     @if ($turno && $turno->stato === 'I')
                         Conferma la chiusura del turno
                     @else
                         Conferma l'inizio del turno
                     @endif
                 </p>
-                <p class="text-center text-xl font-bold text-slate-800" x-show="sostituzione" x-cloak>Conferma la sostituzione</p>
+                <p class="text-left text-xl font-bold text-slate-800" x-show="sostituzione" x-cloak>Conferma la sostituzione</p>
                 <label for="nota-scansione" class="block text-sm font-medium text-slate-700">Inserisci note</label>
                 <textarea id="nota-scansione" x-ref="nota" rows="3" maxlength="255" class="input" placeholder="Nota facoltativa"></textarea>
                 @error('nota') <p class="text-sm text-rose-700">{{ $message }}</p> @enderror
@@ -116,7 +91,7 @@
             <button type="button" class="btn-soft min-h-12 w-full text-base" x-show="sostituzione && !camera && !codice" x-cloak @click="chiudiSostituzione()">Chiudi</button>
             <button type="button" class="btn-soft min-h-12 w-full text-base" x-show="camera && !letto" x-cloak @click="ferma()">Annulla</button>
 
-            <p class="text-center text-sm leading-relaxed" x-show="gps !== 'ok'" x-cloak :class="gps === 'attesa' ? 'text-slate-500' : 'text-rose-700'">
+            <p class="text-left text-sm leading-relaxed" x-show="gps !== 'ok'" x-cloak :class="gps === 'attesa' ? 'text-slate-500' : 'text-rose-700'">
                 <span x-show="gps === 'attesa'">Rilevamento posizione…</span>
                 <span x-show="gps === 'negato' || gps === 'assente'">Posizione non disponibile: consenti il GPS. <button type="button" class="min-h-11 px-1 font-semibold underline underline-offset-2" @click="posizione()">Riprova</button></span>
             </p>
@@ -124,11 +99,36 @@
         @endunless
         </div>
 
-        @if ($risultato && ! $risultato['ok'])
-            <div wire:key="esito-{{ $esitoId }}" role="status" class="rounded-2xl bg-rose-50 p-5 text-rose-800 ring-1 ring-rose-200 sm:p-6">
-                <p class="text-2xl font-extrabold">Non è andata a buon fine</p>
-                <p class="mt-2 text-lg leading-relaxed">{{ $risultato['message'] }}</p>
-            </div>
-        @endif
     </div>
+
+    @if ($risultato)
+        @php
+            $esitoOk = ($risultato['ok'] ?? false) === true;
+            $esito = $esitoOk
+                ? match ($risultato['tipo'] ?? '') {
+                    'F' => ['Turno chiuso', '#0369a1'],
+                    'P' => ['Passaggio registrato', '#0284c7'],
+                    'I' => ['Turno iniziato', '#059669'],
+                    default => ['Timbratura segnata', '#059669'],
+                }
+                : ['Non è andata a buon fine', '#e11d48'];
+        @endphp
+        <div wire:key="esito-{{ $esitoId }}" role="alertdialog" aria-modal="true" aria-labelledby="esito-titolo" class="esito-fondo fixed inset-0 z-[60] flex items-end justify-center bg-[#0f172a]/70 p-4 sm:items-center">
+            <div class="esito-scheda w-full max-w-md rounded-3xl bg-[#ffffff] p-6 text-center shadow-2xl sm:p-8">
+                <div class="esito-segno mx-auto flex h-20 w-20 items-center justify-center rounded-full text-[#ffffff]" style="background-color: {{ $esito[1] }}">
+                    @if ($esitoOk)
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    @else
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18"/></svg>
+                    @endif
+                </div>
+                <h2 id="esito-titolo" class="mt-5 text-2xl font-bold tracking-tight text-[#0f172a]">{{ $esito[0] }}</h2>
+                <p class="mt-2 text-base leading-relaxed text-[#334155]">{{ $risultato['message'] }}</p>
+                @if (! empty($risultato['nota']))
+                    <p class="mt-2 text-base leading-relaxed text-[#334155]">{{ $risultato['nota'] }}</p>
+                @endif
+                <button type="button" wire:click="nascondiEsito({{ $esitoId }})" class="mt-6 inline-flex min-h-14 w-full items-center justify-center rounded-xl px-4 text-base font-semibold text-[#ffffff]" style="background-color: {{ $esito[1] }}">Ho capito</button>
+            </div>
+        </div>
+    @endif
 </div>
