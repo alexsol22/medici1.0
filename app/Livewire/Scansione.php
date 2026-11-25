@@ -2,8 +2,10 @@
 
 namespace App\Livewire;
 
+use App\Models\Legacy\Gda;
 use App\Models\Legacy\Turno;
 use App\Services\Timbratura;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -64,7 +66,31 @@ class Scansione extends Component
         return view('livewire.scansione', [
             'turno' => $turno,
             'fotoSede' => $this->urlFotoSede($turno),
+            'titolo' => $titolo,
+            'progresso' => $this->progressoTurno($turno),
         ])->title($titolo);
+    }
+
+    /**
+     * @return array{ingresso: ?string, fine: ?string, passaggi: Collection<int, array{titolo: string, ora: ?string}>}|null
+     */
+    private function progressoTurno(?Turno $turno): ?array
+    {
+        if ($turno === null) {
+            return null;
+        }
+
+        $turno->load(['presenze' => fn ($query) => $query->with('postazione')->orderBy('data')->orderBy('orario')]);
+        $presenze = $turno->presenze;
+
+        return [
+            'ingresso' => $presenze->firstWhere('tipo', Gda::INIZIO)?->rilevata_at?->format('H:i'),
+            'fine' => $presenze->firstWhere('tipo', Gda::FINE)?->rilevata_at?->format('H:i'),
+            'passaggi' => $presenze->where('tipo', Gda::PASSAGGIO)->map(fn (Gda $presenza): array => [
+                'titolo' => $presenza->postazione?->titolo ?? 'Passaggio',
+                'ora' => $presenza->rilevata_at?->format('H:i'),
+            ])->values(),
+        ];
     }
 
     /**
