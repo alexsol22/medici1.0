@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Livewire\Concerns\ConAccesso;
 use App\Models\Legacy\Admin;
 use App\Models\Legacy\Cliente;
+use App\Models\Legacy\OperatorePreferito;
 use App\Models\Legacy\Turno;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -162,16 +163,22 @@ class Presenze extends Component
             ->havingRaw('SUM(ore) > 0')
             ->get();
         $nomiClienti = Cliente::whereIn('id', $perCliente->pluck('id_cliente'))->pluck('ragione_sociale', 'id');
-        $perCliente = $perCliente->map(fn ($g) => [
-            'nome' => $nomiClienti->get($g->id_cliente, '—'), 'previste' => (float) $g->previste, 'lavorate' => (float) $g->lavorate,
-        ])->sortBy('nome');
+        $perCliente = $perCliente->mapWithKeys(fn ($g) => [$g->id_cliente => [
+            'nome' => $nomiClienti->get($g->id_cliente, '—'),
+            'previste' => (float) $g->previste,
+            'lavorate' => (float) $g->lavorate,
+        ]])->sortBy('nome');
 
+        $preferenze = OperatorePreferito::indice();
         $dati = [
             'perCliente' => $perCliente,
             'perOperatore' => $perOperatore,
             'sedi' => $this->sediVisibili()->orderBy('descrizione')->get(['id', 'id_cliente', 'descrizione']),
             'clientiElenco' => $this->clientiVisibili()->orderBy('ragione_sociale')->get(['tc_clienti.id', 'ragione_sociale']),
             'operatori' => Admin::where('user_type', 4)->orderBy('cognome')->get(),
+            'preferitiPerOperatore' => $preferenze['perOperatore'],
+            'coppiePreferite' => $preferenze['coppie'],
+            'clienteFisso' => auth()->user()->isCliente() ? (int) auth()->user()->id_cliente : null,
         ];
 
         if ($this->vista === 'gda') {

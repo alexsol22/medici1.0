@@ -1,5 +1,15 @@
 @php
     $staff = auth()->user()->isStaff();
+    $opzioniOperatori = $operatori->map(function ($operatore) use ($preferitiPerOperatore, $clienteFisso) {
+        $clienti = $preferitiPerOperatore[(int) $operatore->id] ?? [];
+
+        return [
+            'id' => $operatore->id,
+            'label' => $operatore->nome_completo,
+            'preferito' => $clienteFisso && in_array($clienteFisso, $clienti, true),
+            'preferiti' => $clienti,
+        ];
+    })->values();
 @endphp
 
 <div>
@@ -30,7 +40,7 @@
                         @if ($staff)
                             <div>
                                 <label class="label">Operatore</label>
-                                <x-select-ricerca model="filtroOperatore" :draft="true" :options="$operatori->map(fn ($o) => ['id' => $o->id, 'label' => $o->nome_completo])->values()" />
+                                <x-select-ricerca model="filtroOperatore" cliente="filtroCliente" :draft="true" :options="$opzioniOperatori" />
                             </div>
                         @endif
                         <div>
@@ -106,7 +116,12 @@
                                 <tr wire:key="gda{{ $t->id }}" class="transition hover:bg-sky-50/40">
                                     @if ($staff)<td class="td font-medium">{{ $t->cliente?->ragione_sociale }}</td>@endif
                                     <td class="td">{{ $t->sede?->descrizione }}</td>
-                                    <td class="td">{{ $t->operatore?->codice }} ({{ trim(($t->operatore?->cognome ?? '').' '.($t->operatore?->nome ?? '')) }})</td>
+                                    <td class="td" @if (isset($coppiePreferite[$t->id_cliente.'-'.$t->id_operatore])) data-operatore-preferito @endif>
+                                        <span class="inline-flex items-center gap-1">
+                                            @if (isset($coppiePreferite[$t->id_cliente.'-'.$t->id_operatore]))<x-ui.stella />@endif
+                                            <span>{{ $t->operatore?->codice }} ({{ trim(($t->operatore?->cognome ?? '').' '.($t->operatore?->nome ?? '')) }})</span>
+                                        </span>
+                                    </td>
                                     <td class="td whitespace-nowrap">@if ($inizioGda){{ $inizioGda->data?->format('d-m-Y') }}<br>Ore: {{ $inizioGda->orario }}@endif</td>
                                     <td class="td whitespace-nowrap">@if ($fineGda){{ $fineGda->data?->format('d-m-Y') }}<br>Ore: {{ $fineGda->orario }}@endif</td>
                                     <td class="td">{{ $t->ore }}</td>
@@ -198,7 +213,7 @@
                     @else
                         <div>
                             <label class="label">Operatore</label>
-                            <x-select-ricerca model="filtroOperatore" :draft="true" :options="$operatori->map(fn ($o) => ['id' => $o->id, 'label' => $o->nome_completo])->values()" />
+                            <x-select-ricerca model="filtroOperatore" :draft="true" :options="$opzioniOperatori" />
                         </div>
                     @endif
                     <div>

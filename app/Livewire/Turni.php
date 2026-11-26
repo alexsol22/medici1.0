@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Livewire\Concerns\ConAccesso;
 use App\Models\Legacy\Admin;
 use App\Models\Legacy\Gda;
+use App\Models\Legacy\OperatorePreferito;
 use App\Models\Legacy\Ritardo;
 use App\Models\Legacy\Turno;
 use App\Services\Calcoli;
@@ -791,16 +792,24 @@ class Turni extends Component
             ])
             ->values();
 
+        $preferenze = OperatorePreferito::indice();
+        $clienteFisso = auth()->user()->isCliente() ? (int) auth()->user()->id_cliente : null;
         $suggerimentiOperatori = Admin::query()
             ->whereIn('id', $this->query()->select('id_operatore')->distinct())
             ->orderBy('cognome')
             ->get()
-            ->map(fn ($operatore) => [
-                'id' => $operatore->id,
-                'label' => $operatore->nome_completo,
-                'detail' => $operatore->email,
-                'search' => $operatore->nome_completo.' '.$operatore->email,
-            ])
+            ->map(function ($operatore) use ($preferenze, $clienteFisso) {
+                $clienti = $preferenze['perOperatore'][(int) $operatore->id] ?? [];
+
+                return [
+                    'id' => $operatore->id,
+                    'label' => $operatore->nome_completo,
+                    'detail' => $operatore->email,
+                    'search' => $operatore->nome_completo.' '.$operatore->email,
+                    'preferito' => $clienteFisso && in_array($clienteFisso, $clienti, true),
+                    'preferiti' => $clienti,
+                ];
+            })
             ->values();
 
         $sedeSelezionata = $this->filtroSede ? $this->sediVisibili()->find($this->filtroSede) : null;
@@ -848,6 +857,7 @@ class Turni extends Component
             'turnoDettaglio' => $turnoDettaglio,
             'suggerimentiSedi' => $suggerimentiSedi,
             'suggerimentiOperatori' => $suggerimentiOperatori,
+            'coppiePreferite' => $preferenze['coppie'],
             'sedeSelezionata' => $sedeSelezionata,
             'copertura' => $copertura,
             'operatoreSelezionato' => $operatoreSelezionato,

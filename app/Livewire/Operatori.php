@@ -88,9 +88,24 @@ class Operatori extends Component
     /** @var array<int, mixed> file sostitutivi per riga, indicizzati per id documento */
     public array $fileRigheFormazioni = [];
 
-    public array $attestato = [];
+    /**
+     * Le chiavi devono esistere: altrimenti il selettore non scrive `tipologia` e la validazione resta «obbligatorio».
+     *
+     * @var array{tipologia: string, descrizione: string, scadenza: string}
+     */
+    public array $attestato = [
+        'tipologia' => '',
+        'descrizione' => '',
+        'scadenza' => '',
+    ];
 
     public $fileAttestato;
+
+    /** @var array<int, array{tipologia: string, descrizione: string, scadenza: string, file: string}> */
+    public array $righeAttestati = [];
+
+    /** @var array<int, mixed> */
+    public array $fileRigheAttestati = [];
 
     public array $materiale = [];
 
@@ -188,6 +203,7 @@ class Operatori extends Component
         $this->apriForm();
         $this->caricaMateriali();
         $this->caricaFormazioni();
+        $this->caricaAttestati();
     }
 
     public function mostraFormazioni(int $id): void
@@ -227,7 +243,7 @@ class Operatori extends Component
 
     private function apriForm(): void
     {
-        $this->reset('tab', 'avatar', 'formazione', 'fileFormazione', 'righeFormazioni', 'fileRigheFormazioni', 'attestato', 'fileAttestato', 'materiale', 'righeMateriali');
+        $this->reset('tab', 'avatar', 'formazione', 'fileFormazione', 'righeFormazioni', 'fileRigheFormazioni', 'attestato', 'fileAttestato', 'righeAttestati', 'fileRigheAttestati', 'materiale', 'righeMateriali');
         $this->resetValidation();
         $this->editing = true;
     }
@@ -280,7 +296,12 @@ class Operatori extends Component
             'formazione.fine' => 'nullable|date|after_or_equal:formazione.inizio',
             'formazione.descrizione' => 'required|string|max:255',
             'fileFormazione' => 'required|file|max:10240|mimes:'.self::ESTENSIONI,
-        ], [], ['formazione.descrizione' => 'titolo', 'fileFormazione' => 'file']);
+        ], [], [
+            'formazione.inizio' => 'data inizio',
+            'formazione.fine' => 'data fine',
+            'formazione.descrizione' => 'titolo',
+            'fileFormazione' => 'file',
+        ]);
 
         $this->salvaDocumento($this->fileFormazione, 'Formazione', [
             'formazione' => 'Y', 'descrizione' => $this->formazione['descrizione'],
@@ -288,6 +309,7 @@ class Operatori extends Component
         ]);
         $this->reset('formazione', 'fileFormazione');
         $this->caricaFormazioni();
+        session()->flash('esito', 'Formazione aggiunta.');
     }
 
     public function salvaFormazione(int $id): void
@@ -310,18 +332,13 @@ class Operatori extends Component
 
         $file = $this->fileRigheFormazioni[$id] ?? null;
         if ($file) {
-            $disco = Storage::disk(config('filesystems.files_disk'));
-            $vecchioPercorso = $documento->percorso();
-            $estensione = strtolower($file->getClientOriginalExtension());
-            $documento->file = 'Formazione_'.$operatore->nome.'_'.$operatore->cognome.'-'.$operatore->id.'_'.time().'.'.$estensione;
-            $file->storeAs(dirname($documento->percorso()), basename($documento->percorso()), ['disk' => config('filesystems.files_disk')]);
-            $disco->delete($vecchioPercorso);
-            $dati += ['file' => $documento->file, 'icona' => self::ICONE[$estensione] ?? 'file-alt'];
+            $dati += $this->sostituisciFile($documento, $file, 'Formazione');
         }
 
         $documento->update($dati);
         unset($this->fileRigheFormazioni[$id]);
         $this->caricaFormazioni();
+        session()->flash('esito', 'Formazione aggiornata.');
     }
 
     private function caricaFormazioni(): void
@@ -341,13 +358,79 @@ class Operatori extends Component
             'attestato.descrizione' => 'nullable|string|max:255',
             'attestato.scadenza' => 'nullable|date',
             'fileAttestato' => 'required|file|max:10240|mimes:'.self::ESTENSIONI,
-        ], [], ['attestato.tipologia' => 'tipo documento', 'fileAttestato' => 'file']);
+        ], [], [
+            'attestato.tipologia' => 'tipo documento',
+            'attestato.descrizione' => 'descrizione',
+            'attestato.scadenza' => 'scadenza',
+            'fileAttestato' => 'file',
+        ]);
 
         $this->salvaDocumento($this->fileAttestato, 'Documento', [
             'formazione' => 'N', 'tipologia' => $this->attestato['tipologia'],
             'descrizione' => $this->attestato['descrizione'] ?? '', 'scadenza' => $this->attestato['scadenza'] ?? null ?: null,
         ]);
         $this->reset('attestato', 'fileAttestato');
+        $this->caricaAttestati();
+        session()->flash('esito', 'Documento aggiunto.');
+    }
+
+    public function salvaAttestato(int $id): void
+    {
+        $this->validate([
+            "righeAttestati.$id.tipologia" => 'required|exists:_certificati,id',
+            "righeAttestati.$id.descrizione" => 'nullable|string|max:255',
+            "righeAttestati.$id.scadenza" => 'nullable|date',
+            "fileRigheAttestati.$id" => 'nullable|file|max:10240|mimes:'.self::ESTENSIONI,
+        ], [], [
+            "righeAttestati.$id.tipologia" => 'tipo documento',
+            "righeAttestati.$id.descrizione" => 'descrizione',
+            "righeAttestati.$id.scadenza" => 'scadenza',
+            "fileRigheAttestati.$id" => 'file',
+        ]);
+
+        $operatore = $this->operatoreCorrente();
+        $documento = Documento::where('tipo', 'O')->where('id_tipo', $operatore->id)->where('formazione', 'N')->findOrFail($id);
+        $riga = $this->righeAttestati[$id];
+        $dati = [
+            'tipologia' => $riga['tipologia'],
+            'descrizione' => $riga['descrizione'] ?? '',
+            'scadenza' => ($riga['scadenza'] ?? null) ?: null,
+        ];
+
+        $file = $this->fileRigheAttestati[$id] ?? null;
+        if ($file) {
+            $dati += $this->sostituisciFile($documento, $file, 'Documento');
+        }
+
+        $documento->update($dati);
+        unset($this->fileRigheAttestati[$id]);
+        $this->caricaAttestati();
+        session()->flash('esito', 'Documento aggiornato.');
+    }
+
+    /** @return array{file: string, icona: string} */
+    private function sostituisciFile(Documento $documento, mixed $file, string $prefisso): array
+    {
+        $operatore = $this->operatoreCorrente();
+        $disco = Storage::disk(config('filesystems.files_disk'));
+        $vecchioPercorso = $documento->percorso();
+        $estensione = strtolower($file->getClientOriginalExtension());
+        $documento->file = $prefisso.'_'.$operatore->nome.'_'.$operatore->cognome.'-'.$operatore->id.'_'.time().'.'.$estensione;
+        $file->storeAs(dirname($documento->percorso()), basename($documento->percorso()), ['disk' => config('filesystems.files_disk')]);
+        $disco->delete($vecchioPercorso);
+
+        return ['file' => $documento->file, 'icona' => self::ICONE[$estensione] ?? 'file-alt'];
+    }
+
+    private function caricaAttestati(): void
+    {
+        $this->righeAttestati = Documento::where('tipo', 'O')->where('id_tipo', $this->operatoreCorrente()->id)->where('formazione', 'N')->orderByDesc('id')->get()
+            ->mapWithKeys(fn (Documento $d) => [$d->id => [
+                'tipologia' => (string) ($d->tipologia ?? ''),
+                'descrizione' => $d->descrizione ?? '',
+                'scadenza' => $d->scadenza?->format('Y-m-d') ?? '',
+                'file' => (string) ($d->file ?? ''),
+            ]])->all();
     }
 
     /** Come Yii (_geFiles): file `{Tipo}_{nome}_{cognome}-{id}_{time}.ext` in Operatore_{id}. */
@@ -384,6 +467,7 @@ class Operatori extends Component
         Storage::disk(config('filesystems.files_disk'))->delete($documento->percorso());
         $documento->delete();
         $this->caricaFormazioni();
+        $this->caricaAttestati();
     }
 
     public function aggiungiMateriale(): void
@@ -393,12 +477,18 @@ class Operatori extends Component
             'materiale.descrizione' => 'nullable|string|max:255',
             'materiale.taglia' => 'nullable|string|max:255',
             'materiale.riconsegna' => 'nullable|date',
-        ], [], ['materiale.id_materiale' => 'materiale']);
+        ], [], [
+            'materiale.id_materiale' => 'materiale',
+            'materiale.descrizione' => 'descrizione',
+            'materiale.taglia' => 'taglia',
+            'materiale.riconsegna' => 'riconsegna',
+        ]);
 
         Materiale::create($this->datiMateriale($this->materiale) + ['id_operatore' => $this->operatoreCorrente()->id]);
 
         $this->reset('materiale');
         $this->caricaMateriali();
+        session()->flash('esito', 'Materiale aggiunto.');
     }
 
     public function salvaMateriale(int $id): void
@@ -408,10 +498,16 @@ class Operatori extends Component
             "righeMateriali.$id.descrizione" => 'nullable|string|max:255',
             "righeMateriali.$id.taglia" => 'nullable|string|max:255',
             "righeMateriali.$id.riconsegna" => 'nullable|date',
-        ], [], ["righeMateriali.$id.id_materiale" => 'materiale']);
+        ], [], [
+            "righeMateriali.$id.id_materiale" => 'materiale',
+            "righeMateriali.$id.descrizione" => 'descrizione',
+            "righeMateriali.$id.taglia" => 'taglia',
+            "righeMateriali.$id.riconsegna" => 'riconsegna',
+        ]);
 
         Materiale::where('id_operatore', $this->operatoreCorrente()->id)->findOrFail($id)->update($this->datiMateriale($this->righeMateriali[$id]));
         $this->caricaMateriali();
+        session()->flash('esito', 'Materiale aggiornato.');
     }
 
     public function eliminaMateriale(int $id): void
@@ -637,7 +733,6 @@ class Operatori extends Component
             'daEliminare' => $daEliminare,
             'riepilogo' => $riepilogo,
             'province' => Provincia::orderBy('nome')->get(['id', 'nome', 'sigla']),
-            'attestati' => $conSezioni ? Documento::with('certificato')->where('tipo', 'O')->where('id_tipo', $this->userId)->where('formazione', 'N')->orderByDesc('id')->get() : collect(),
             'limitePromemoria' => today()->addDays((int) Messaggio::find(5)?->giorni),
             'tipiCertificato' => $conSezioni ? Certificato::orderBy('nome')->get() : collect(),
             'tipiMateriale' => $conSezioni ? TipoMateriale::orderBy('nome')->get() : collect(),

@@ -44,7 +44,17 @@
             };
             this.altezzaLista = `${Math.max(48, Math.min(240, spazioDisponibile - 72))}px`;
         },
-        pick(id) { this.value = id; this.open = false; this.q = ''; },
+        pick(id) {
+            const scelto = id === '' || id === null ? '' : String(id);
+            this.value = scelto;
+            @unless ($draft)
+            if (String($wire.get(@js($model)) ?? '') !== scelto) {
+                $wire.set(@js($model), scelto, {{ $live ? 'true' : 'false' }});
+            }
+            @endunless
+            this.open = false;
+            this.q = '';
+        },
     }"
     @click.outside="open = false"
     @keydown.escape="if (open) { $event.stopPropagation(); open = false; }"

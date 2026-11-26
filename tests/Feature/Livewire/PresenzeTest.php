@@ -242,7 +242,10 @@ class PresenzeTest extends TestCase
             'sede' => $dati['sedeUno'],
         ])->test(Presenze::class)->set('vista', 'clienti');
 
-        $this->assertSame([['nome' => 'Cliente Uno', 'previste' => 2.0, 'lavorate' => 2.0]], $componente->viewData('perCliente')->values()->all());
+        $this->assertSame([$dati['clienteUno']], $componente->viewData('perCliente')->keys()->all());
+        $this->assertSame(['nome' => 'Cliente Uno', 'previste' => 2.0, 'lavorate' => 2.0], $componente->viewData('perCliente')->get($dati['clienteUno']));
+        $componente->assertSee('/presenze/ore/cliente/'.$dati['clienteUno'], false)
+            ->assertDontSee('/presenze/ore/cliente/0?', false);
     }
 
     public function test_operator_filter_limits_operator_hours(): void
@@ -424,5 +427,57 @@ class PresenzeTest extends TestCase
             'operatoreDue' => $operatoreDue,
             'turnoUno' => $turnoUno,
         ];
+    }
+
+    public function test_gda_segna_con_una_stellina_l_operatore_preferito_del_cliente(): void
+    {
+        Schema::create('tc_operatori_preferiti', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->unsignedInteger('id_cliente');
+            $table->unsignedInteger('id_operatore');
+        });
+
+        $staff = User::create(['user' => 'staff', 'password' => 'secret', 'attivo' => 'Y', 'user_type' => 2]);
+        $cliente = DB::table('tc_clienti')->insertGetId(['ragione_sociale' => 'Cliente Stella']);
+        $preferito = DB::table('tc_admin')->insertGetId([
+            'user' => 'preferito', 'password' => 'secret', 'attivo' => 'Y', 'user_type' => 4,
+            'codice' => 'P1', 'nome' => 'Mario', 'cognome' => 'Rossi',
+        ]);
+        $altro = DB::table('tc_admin')->insertGetId([
+            'user' => 'altro', 'password' => 'secret', 'attivo' => 'Y', 'user_type' => 4,
+            'codice' => 'P2', 'nome' => 'Luca', 'cognome' => 'Bianchi',
+        ]);
+        $sede = DB::table('tc_sedi')->insertGetId(['id_cliente' => $cliente, 'descrizione' => 'Sede Stella']);
+        DB::table('tc_operatori_preferiti')->insert(['id_cliente' => $cliente, 'id_operatore' => $preferito]);
+        foreach ([$preferito, $altro] as $operatore) {
+            $turno = DB::table('tc_turni')->insertGetId([
+                'id_cliente' => $cliente,
+                'id_sede' => $sede,
+                'id_operatore' => $operatore,
+                'data_inizio' => today()->toDateString(),
+                'ora_inizio' => '08:00',
+                'ore' => 8,
+                'ore_lavorate' => 8,
+                'stato' => 'F',
+            ]);
+            DB::table('tc_gda')->insert([
+                'id_turno' => $turno,
+                'id_operatore' => $operatore,
+                'id_cliente' => $cliente,
+                'id_sede' => $sede,
+                'tipo' => 'I',
+                'data' => today()->toDateString(),
+                'orario' => '08:00',
+            ]);
+        }
+
+        $html = Livewire::actingAs($staff)->test(Presenze::class)
+            ->set('filtroCliente', $cliente)
+            ->html();
+
+        $this->assertMatchesRegularExpression('/preferiti(?:\\\\u0022)?:\['.$cliente.'\]/', $html);
+        $this->assertSame(1, substr_count($html, 'data-operatore-preferito'));
+        $this->assertStringContainsString('P1 (Rossi Mario)', $html);
+        $this->assertStringContainsString('P2 (Bianchi Luca)', $html);
     }
 }

@@ -270,77 +270,106 @@
                             <tr>
                                 <th class="px-3 py-2">Data inizio</th>
                                 <th class="px-3 py-2">Data fine</th>
-                                <th class="px-3 py-2">Titolo / Descrizione</th>
+                                <th class="px-3 py-2">Titolo</th>
                                 <th class="px-3 py-2">File</th>
-                                <th class="px-3 py-2"></th>
+                                <th class="px-3 py-2">Azioni sulla riga</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-sky-100">
-                            @foreach ($righeFormazioni as $id => $riga)
+                            @forelse ($righeFormazioni as $id => $riga)
                                 <tr wire:key="fo{{ $id }}" class="align-top">
-                                    <td class="px-3 py-2"><input type="date" wire:model="righeFormazioni.{{ $id }}.inizio" class="input">@error("righeFormazioni.$id.inizio")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
-                                    <td class="px-3 py-2"><input type="date" wire:model="righeFormazioni.{{ $id }}.fine" class="input">@error("righeFormazioni.$id.fine")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
-                                    <td class="px-3 py-2"><input wire:model="righeFormazioni.{{ $id }}.descrizione" class="input">@error("righeFormazioni.$id.descrizione")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
+                                    <td class="px-3 py-2"><input type="date" wire:model="righeFormazioni.{{ $id }}.inizio" aria-label="Data inizio" class="input">@error("righeFormazioni.$id.inizio")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
+                                    <td class="px-3 py-2"><input type="date" wire:model="righeFormazioni.{{ $id }}.fine" aria-label="Data fine" class="input">@error("righeFormazioni.$id.fine")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
+                                    <td class="px-3 py-2"><input wire:model="righeFormazioni.{{ $id }}.descrizione" aria-label="Titolo" class="input">@error("righeFormazioni.$id.descrizione")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
                                     <td class="px-3 py-2">
-                                        <a href="{{ route('documenti.scarica', $id, false) }}" class="block truncate text-sky-700 hover:underline">Scarica file attuale</a>
-                                        <input type="file" wire:model="fileRigheFormazioni.{{ $id }}" class="mt-1 block w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-sky-100 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-sky-700" title="Scegli per sostituire il file">
+                                        <a href="{{ route('documenti.scarica', $id, false) }}" class="font-semibold text-sky-700 hover:underline">File attuale</a>
+                                        <input type="file" wire:model="fileRigheFormazioni.{{ $id }}" aria-label="Sostituisci file della formazione" class="mt-1 block w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-sky-100 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-sky-700">
                                         @error("fileRigheFormazioni.$id")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                                     </td>
                                     <td class="whitespace-nowrap px-3 py-2 text-right">
-                                        <button type="button" wire:click="salvaFormazione({{ $id }})" wire:loading.attr="disabled" wire:target="fileRigheFormazioni.{{ $id }},salvaFormazione" class="btn-primary !px-3 !py-1">Salva</button>
+                                        <button type="button" wire:click="salvaFormazione({{ $id }})" wire:loading.attr="disabled" wire:target="fileRigheFormazioni.{{ $id }},salvaFormazione" class="btn-primary !px-3 !py-1">Salva riga</button>
                                         <button type="button" wire:click="eliminaDocumento({{ $id }})" wire:confirm="Eliminare la formazione?" class="btn-danger !px-3 !py-1">Elimina</button>
                                     </td>
                                 </tr>
-                            @endforeach
-                            <tr class="bg-sky-50/60 align-top">
-                                <td class="px-3 py-2"><input type="date" wire:model="formazione.inizio" class="input">@error('formazione.inizio')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
-                                <td class="px-3 py-2"><input type="date" wire:model="formazione.fine" class="input">@error('formazione.fine')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
-                                <td class="px-3 py-2"><input wire:model="formazione.descrizione" class="input" placeholder="Nuova formazione: titolo">@error('formazione.descrizione')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
-                                <td class="px-3 py-2">
-                                    <input type="file" wire:model="fileFormazione" class="block w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-sky-100 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-sky-700">
-                                    @error('fileFormazione')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
-                                </td>
-                                <td class="px-3 py-2 text-right"><button type="button" wire:click="aggiungiFormazione" wire:loading.attr="disabled" wire:target="fileFormazione,aggiungiFormazione" class="btn-primary !px-3 !py-1">Aggiungi</button></td>
+                            @empty
+                                <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">Nessuna formazione inserita.</td></tr>
+                            @endforelse
+                            <tr class="bg-sky-50/80 align-top">
+                                <td class="px-3 py-2"><input type="date" wire:model="formazione.inizio" aria-label="Data inizio della nuova formazione" class="input">@error('formazione.inizio')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
+                                <td class="px-3 py-2"><input type="date" wire:model="formazione.fine" aria-label="Data fine della nuova formazione" class="input">@error('formazione.fine')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
+                                <td class="px-3 py-2"><input wire:model="formazione.descrizione" aria-label="Titolo della nuova formazione" class="input" placeholder="Titolo, obbligatorio">@error('formazione.descrizione')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
+                                <td class="px-3 py-2"><input type="file" wire:model="fileFormazione" aria-label="File della nuova formazione, obbligatorio" class="block w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-sky-100 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-sky-700">@error('fileFormazione')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
+                                <td class="px-3 py-2 text-right"><button type="button" wire:click="aggiungiFormazione" wire:loading.attr="disabled" wire:target="fileFormazione,aggiungiFormazione" class="btn-primary !px-3 !py-1">Aggiungi riga</button></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <p class="mt-2 text-xs text-slate-500">Modifica i campi nella riga e premi Salva. Per sostituire il file, sceglilo nella riga prima di salvare.</p>
             @endif
 
             @if ($tab === 'attestati' && $userId)
-                <div class="space-y-4">
-                    <ul class="divide-y divide-sky-100 rounded-2xl ring-1 ring-sky-100">
-                        @forelse ($attestati as $d)
-                            <li wire:key="at{{ $d->id }}" class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-sm">
-                                <div class="min-w-0">
-                                    <select wire:change="aggiornaTipologia({{ $d->id }}, $event.target.value)" class="input !w-auto !py-1 font-medium">
-                                        @foreach ($tipiCertificato as $t)
-                                            <option value="{{ $t->id }}" @selected((string) $d->tipologia === (string) $t->id)>{{ $t->nome }}</option>
-                                        @endforeach
+                @php($opzioniCertificato = $tipiCertificato->map(fn ($t) => ['id' => (string) $t->id, 'nome' => $t->nome])->values())
+                <div class="overflow-x-auto rounded-2xl ring-1 ring-sky-100">
+                    <table class="w-full min-w-[56rem] text-left text-sm">
+                        <thead class="bg-sky-50 text-xs font-semibold uppercase text-slate-500">
+                            <tr>
+                                <th class="px-3 py-2">Documento / Attestato</th>
+                                <th class="px-3 py-2">Descrizione</th>
+                                <th class="px-3 py-2">Scadenza</th>
+                                <th class="px-3 py-2">File</th>
+                                <th class="px-3 py-2">Azioni sulla riga</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-sky-100">
+                            @foreach ($righeAttestati as $id => $riga)
+                                @php($scadenza = $riga['scadenza'] !== '' ? \Illuminate\Support\Carbon::parse($riga['scadenza']) : null)
+                                <tr wire:key="at{{ $id }}" class="align-top">
+                                    <td class="px-3 py-2">
+                                        <select wire:model="righeAttestati.{{ $id }}.tipologia" aria-label="Tipo documento" class="input">
+                                            <option value="">Scegli tipo</option>
+                                            @foreach ($opzioniCertificato as $o)<option value="{{ $o['id'] }}">{{ $o['nome'] }}</option>@endforeach
+                                        </select>
+                                        @error("righeAttestati.$id.tipologia")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                                    </td>
+                                    <td class="px-3 py-2"><input wire:model="righeAttestati.{{ $id }}.descrizione" aria-label="Descrizione" class="input">@error("righeAttestati.$id.descrizione")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
+                                    <td class="px-3 py-2">
+                                        <input type="date" wire:model="righeAttestati.{{ $id }}.scadenza" aria-label="Scadenza" class="input">
+                                        @error("righeAttestati.$id.scadenza")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                                        @if ($scadenza && $scadenza->lte(today()->addDays(30)))
+                                            @if ($scadenza->lt(today()))
+                                                <span class="mt-1 inline-block rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">Scaduto</span>
+                                            @else
+                                                <span class="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">In scadenza</span>
+                                            @endif
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <a href="{{ route('documenti.scarica', [$id, 'visualizza' => 1], false) }}" target="_blank" class="font-semibold text-sky-700 hover:underline">Apri</a>
+                                        ·
+                                        <a href="{{ route('documenti.scarica', $id, false) }}" class="font-semibold text-sky-700 hover:underline">Scarica</a>
+                                        <input type="file" wire:model="fileRigheAttestati.{{ $id }}" aria-label="Sostituisci file del documento" class="mt-1 block w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-sky-100 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-sky-700">
+                                        @error("fileRigheAttestati.$id")<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-2 text-right">
+                                        <button type="button" wire:click="salvaAttestato({{ $id }})" wire:loading.attr="disabled" wire:target="fileRigheAttestati.{{ $id }},salvaAttestato" class="btn-primary !px-3 !py-1">Salva riga</button>
+                                        <button type="button" wire:click="eliminaDocumento({{ $id }})" wire:confirm="Eliminare il documento?" class="btn-danger !px-3 !py-1">Elimina</button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                            <tr class="bg-sky-50/80 align-top">
+                                <td class="px-3 py-2">
+                                    <select wire:model="attestato.tipologia" aria-label="Tipo del nuovo documento" class="input">
+                                        <option value="">Scegli tipo, obbligatorio</option>
+                                        @foreach ($opzioniCertificato as $o)<option value="{{ $o['id'] }}">{{ $o['nome'] }}</option>@endforeach
                                     </select>
-                                    @if ($d->descrizione) <span class="ml-2 text-slate-500">{{ $d->descrizione }}</span> @endif
-                                </div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <label class="flex items-center gap-1 text-xs text-slate-500">Scadenza
-                                        <input type="date" value="{{ $d->scadenza?->format('Y-m-d') }}" wire:change="aggiornaScadenza({{ $d->id }}, $event.target.value)" class="input !w-auto !py-1 {{ $d->inScadenza() ? '!border-rose-300 !text-rose-600' : '' }}">
-                                    </label>
-                                    <a href="{{ route('documenti.scarica', [$d, 'visualizza' => 1], false) }}" target="_blank" class="btn-soft !px-3 !py-1">Visualizza</a>
-                                    <a href="{{ route('documenti.scarica', $d, false) }}" class="btn-soft !px-3 !py-1">Scarica</a>
-                                    <button type="button" wire:click="eliminaDocumento({{ $d->id }})" wire:confirm="Eliminare il documento?" class="btn-danger !px-3 !py-1">Elimina</button>
-                                </div>
-                            </li>
-                        @empty
-                            <li class="px-4 py-6 text-center text-sm text-slate-500">Nessun documento.</li>
-                        @endforelse
-                    </ul>
-                    <div class="grid gap-3 rounded-2xl bg-sky-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <x-ui.field label="Documento / Attestato" name="attestato.tipologia"><x-ui.select-search wire:key="tipo-attestato" model="attestato.tipologia" :options="$tipiCertificato->map(fn ($t) => ['id' => (string) $t->id, 'nome' => $t->nome])->values()" placeholder="Scegli tipo" /></x-ui.field>
-                        <x-ui.field label="Descrizione" name="attestato.descrizione"><input wire:model="attestato.descrizione" class="input"></x-ui.field>
-                        <x-ui.field label="Scadenza" name="attestato.scadenza"><input type="date" wire:model="attestato.scadenza" class="input"></x-ui.field>
-                        <x-ui.field label="Allega file" name="fileAttestato"><input type="file" wire:model="fileAttestato" class="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-sky-100 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-sky-700"></x-ui.field>
-                        <button type="button" wire:click="aggiungiAttestato" wire:loading.attr="disabled" wire:target="fileAttestato,aggiungiAttestato" class="btn-primary sm:col-span-2 lg:col-span-4">Aggiungi documento</button>
-                    </div>
+                                    @error('attestato.tipologia')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                                </td>
+                                <td class="px-3 py-2"><input wire:model="attestato.descrizione" aria-label="Descrizione del nuovo documento" class="input" placeholder="Descrizione"></td>
+                                <td class="px-3 py-2"><input type="date" wire:model="attestato.scadenza" aria-label="Scadenza del nuovo documento" class="input">@error('attestato.scadenza')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
+                                <td class="px-3 py-2"><input type="file" wire:model="fileAttestato" aria-label="File del nuovo documento, obbligatorio" class="block w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-sky-100 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-sky-700">@error('fileAttestato')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</td>
+                                <td class="px-3 py-2 text-right"><button type="button" wire:click="aggiungiAttestato" wire:loading.attr="disabled" wire:target="fileAttestato,aggiungiAttestato" class="btn-primary !px-3 !py-1">Aggiungi riga</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             @endif
 
@@ -355,7 +384,7 @@
                                 <th class="px-3 py-2">Taglia</th>
                                 <th class="px-3 py-2">Riconsegna</th>
                                 <th class="px-3 py-2 text-center">Consegnato</th>
-                                <th class="px-3 py-2"></th>
+                                <th class="px-3 py-2">Azioni sulla riga</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-sky-100">
@@ -383,15 +412,15 @@
                                     </td>
                                     <td class="px-3 py-2 text-center"><input type="checkbox" wire:model="righeMateriali.{{ $id }}.consegnato" class="size-5 rounded border-slate-300 accent-emerald-500" title="Consegnato all'operatore"></td>
                                     <td class="whitespace-nowrap px-3 py-2 text-right">
-                                        <button type="button" wire:click="salvaMateriale({{ $id }})" class="btn-primary !px-3 !py-1">Salva</button>
+                                        <button type="button" wire:click="salvaMateriale({{ $id }})" class="btn-primary !px-3 !py-1">Salva riga</button>
                                         <button type="button" wire:click="eliminaMateriale({{ $id }})" wire:confirm="Eliminare il materiale?" class="btn-danger !px-3 !py-1">Elimina</button>
                                     </td>
                                 </tr>
                             @endforeach
-                            <tr class="bg-sky-50/60 align-top">
+                            <tr class="bg-sky-50/80 align-top">
                                 <td class="px-3 py-2">
-                                    <select wire:model="materiale.id_materiale" class="input">
-                                        <option value="">Nuovo: scegli materiale</option>
+                                    <select wire:model="materiale.id_materiale" aria-label="Materiale della nuova riga" class="input">
+                                        <option value="">Scegli materiale, obbligatorio</option>
                                         @foreach ($opzioni as $o)<option value="{{ $o['id'] }}">{{ $o['nome'] }}</option>@endforeach
                                     </select>
                                     @error('materiale.id_materiale')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
@@ -403,12 +432,11 @@
                                     @error('materiale.riconsegna')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                                 </td>
                                 <td class="px-3 py-2 text-center"><input type="checkbox" wire:model="materiale.consegnato" class="size-5 rounded border-slate-300 accent-emerald-500" title="Consegnato all'operatore"></td>
-                                <td class="px-3 py-2 text-right"><button type="button" wire:click="aggiungiMateriale" class="btn-primary !px-3 !py-1">Aggiungi</button></td>
+                                <td class="px-3 py-2 text-right"><button type="button" wire:click="aggiungiMateriale" class="btn-primary !px-3 !py-1">Aggiungi riga</button></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <p class="mt-2 text-xs text-slate-500">Modifica i campi direttamente nella riga e premi Salva. Con data di riconsegna e materiale non consegnato, gli amministratori ricevono il promemoria automatico.</p>
             @endif
         </div>
     @endif

@@ -645,4 +645,27 @@ class TurniGestioneTest extends TestCase
             ->set('f.data_fine', '2026-11-20')
             ->assertDontSee('Ore totali:');
     }
+
+    public function test_ricerca_e_elenco_mostrano_la_stellina_sugli_operatori_preferiti_del_cliente(): void
+    {
+        DB::table('tc_operatori_preferiti')->insert(['id_cliente' => 1, 'id_operatore' => 2]);
+
+        $html = $this->lista()->html();
+
+        $this->assertMatchesRegularExpression('/preferiti(?:\\\\u0022)?:\[1\]/', $html);
+        $this->assertSame(2, substr_count($html, 'data-operatore-preferito'));
+        $this->assertStringContainsString('OP1 (Rossi Mario)', $html);
+
+        $modale = $this->lista()
+            ->call('nuovo')
+            ->set('f.cliente_id', 1)
+            ->set('f.data_inizio', '2026-11-20')
+            ->set('f.ora_inizio', '08:00')
+            ->set('f.data_fine', '2026-11-20')
+            ->set('f.ora_fine', '12:00')
+            ->html();
+
+        $this->assertMatchesRegularExpression('/preferito(?:\\\\u0022)?:true/', $modale);
+        $this->assertStringNotContainsString('★', $modale);
+    }
 }

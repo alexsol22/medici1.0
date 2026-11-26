@@ -741,9 +741,13 @@ class ClientiOperatoriSuiteTest extends TestCase
             ->set('fileFormazione', UploadedFile::fake()->create('c.pdf', 10, 'application/pdf'))->call('aggiungiFormazione')->assertHasErrors(['formazione.fine']);
         $c->set('formazione', ['descrizione' => 'Corso', 'inizio' => '2026-05-01', 'fine' => '2026-05-10'])->call('aggiungiFormazione')->assertHasNoErrors();
 
-        $c->call('aggiungiAttestato')->assertHasErrors(['attestato.tipologia', 'fileAttestato']);
-        $c->set('attestato', ['tipologia' => 99])->set('fileAttestato', UploadedFile::fake()->create('a.pdf', 10, 'application/pdf'))->call('aggiungiAttestato')->assertHasErrors(['attestato.tipologia']);
-        $c->set('attestato', ['tipologia' => 1, 'descrizione' => 'BLS', 'scadenza' => '2027-01-01'])->call('aggiungiAttestato')->assertHasNoErrors();
+        $c->assertSet('attestato.tipologia', '');
+        $c->call('aggiungiAttestato')->assertHasErrors([
+            'attestato.tipologia' => 'Il campo tipo documento è obbligatorio.',
+            'fileAttestato',
+        ]);
+        $c->set('attestato.tipologia', '99')->set('fileAttestato', UploadedFile::fake()->create('a.pdf', 10, 'application/pdf'))->call('aggiungiAttestato')->assertHasErrors(['attestato.tipologia' => 'Il valore selezionato per tipo documento non è valido.']);
+        $c->set('attestato.tipologia', '1')->set('attestato.descrizione', 'BLS')->set('attestato.scadenza', '2027-01-01')->call('aggiungiAttestato')->assertHasNoErrors();
         $c->set('attestato', ['tipologia' => 1])->set('fileAttestato', UploadedFile::fake()->create('x.exe', 10))->call('aggiungiAttestato')->assertHasErrors(['fileAttestato']);
 
         $this->assertSame(2, DB::table('tc_documenti')->where('tipo', 'O')->where('id_tipo', $id)->count());

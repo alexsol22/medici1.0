@@ -189,11 +189,20 @@
                         this.valori.filtroOperatore = id;
                         this.aperto = false;
                         this.ricerca = '';
+                    },
+                    stella(opzione) {
+                        if (!opzione) return false
+                        if (opzione.preferito) return true
+                        const cliente = this.valori?.filtroCliente
+                        return cliente !== null && cliente !== '' && (opzione.preferiti || []).map(String).includes(String(cliente))
                     }
                 }" @click.outside="aperto = false" @keydown.escape="if (aperto) { $event.stopPropagation(); aperto = false; }" @scroll.window.capture="if (aperto) aggiornaPosizione()" @resize.window="if (aperto) aggiornaPosizione()">
                     <label class="label" for="filtro-operatore">Operatore</label>
                     <button id="filtro-operatore" x-ref="selettore" type="button" role="combobox" aria-controls="suggerimenti-operatori" :aria-expanded="aperto" @click="apri()" class="input flex items-center justify-between text-left">
-                        <span x-text="opzioni.find(opzione => String(opzione.id) === String(valori.filtroOperatore))?.label ?? 'Tutti gli operatori'"></span>
+                        <span class="flex min-w-0 items-center gap-1.5">
+                            <x-ui.stella x-cloak x-show="stella(opzioni.find(opzione => String(opzione.id) === String(valori.filtroOperatore)))" />
+                            <span class="truncate" x-text="opzioni.find(opzione => String(opzione.id) === String(valori.filtroOperatore))?.label ?? 'Tutti gli operatori'"></span>
+                        </span>
                         <span aria-hidden="true" class="text-slate-400">⌄</span>
                     </button>
                     <div x-cloak x-show="aperto" x-bind:style="stileMenu" class="fixed z-[60] min-w-48 overflow-hidden rounded-xl border border-sky-100 bg-white shadow-lg">
@@ -206,9 +215,12 @@
                             </li>
                             <template x-for="opzione in filtrati()" :key="opzione.id">
                                 <li role="option">
-                                    <button type="button" @click="seleziona(opzione.id)" class="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-sky-50">
-                                        <span class="block font-semibold text-slate-800" x-text="opzione.label"></span>
-                                        <span class="block text-xs text-slate-500" x-text="opzione.detail"></span>
+                                    <button type="button" @click="seleziona(opzione.id)" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-sky-50">
+                                        <x-ui.stella x-cloak x-show="stella(opzione)" />
+                                        <span class="min-w-0">
+                                            <span class="block font-semibold text-slate-800" x-text="opzione.label"></span>
+                                            <span class="block text-xs text-slate-500" x-text="opzione.detail"></span>
+                                        </span>
                                     </button>
                                 </li>
                             </template>
@@ -362,8 +374,8 @@
                             @foreach ($periodoCalendario === 'mese' ? $giorno->take(3) : $giorno as $t)
                                 @php($c = ['programmato' => 'bg-sky-100 text-sky-800', 'in_corso' => 'bg-emerald-100 text-emerald-800', 'completato' => 'bg-teal-100 text-teal-800', 'non_timbrato' => 'bg-amber-100 text-amber-800', 'non_completato' => 'bg-orange-100 text-orange-800', 'non_eseguito' => 'bg-rose-100 text-rose-800'][$t->statoEffettivo()])
                                 <div wire:key="turno-{{ $t->id }}" class="flex min-w-0 items-stretch gap-0.5">
-                                    <button type="button" wire:click="mostraTurno({{ $t->id }})" class="flex min-w-0 flex-1 items-center justify-between gap-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium leading-tight hover:ring-1 hover:ring-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 {{ $c }}" title="{{ $t->sede?->descrizione }} · {{ $t->operatore?->nome_completo }}" aria-label="Visualizza timbrature turno delle {{ $t->inizio->format('H:i') }} presso {{ $t->sede?->descrizione }} per {{ $t->operatore?->nome_completo }}">
-                                        <span class="min-w-0 truncate"><span class="font-bold">{{ $t->inizio->format('H:i') }}</span> <span class="hidden sm:inline">{{ $t->operatore?->cognome ?: $t->operatore?->nome }}</span></span>
+                                    <button type="button" wire:click="mostraTurno({{ $t->id }})" @if (isset($coppiePreferite[$t->id_cliente.'-'.$t->id_operatore])) data-operatore-preferito @endif class="flex min-w-0 flex-1 items-center justify-between gap-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium leading-tight hover:ring-1 hover:ring-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 {{ $c }}" title="{{ $t->sede?->descrizione }} · {{ $t->operatore?->nome_completo }}{{ isset($coppiePreferite[$t->id_cliente.'-'.$t->id_operatore]) ? ' · operatore preferito' : '' }}" aria-label="Visualizza timbrature turno delle {{ $t->inizio->format('H:i') }} presso {{ $t->sede?->descrizione }} per {{ $t->operatore?->nome_completo }}">
+                                        <span class="flex min-w-0 items-center gap-1 truncate"><span class="font-bold">{{ $t->inizio->format('H:i') }}</span> @if (isset($coppiePreferite[$t->id_cliente.'-'.$t->id_operatore]))<x-ui.stella class="!h-3 !w-3" />@endif <span class="hidden truncate sm:inline">{{ $t->operatore?->cognome ?: $t->operatore?->nome }}</span></span>
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.5-6.25 9.75-6.25S21.75 12 21.75 12 18.25 18.25 12 18.25 2.25 12 2.25 12Z" />
                                             <circle cx="12" cy="12" r="2.5" />
@@ -417,7 +429,7 @@
                         @endif
                         <td class="td font-semibold text-slate-800">{{ $t->sede?->cliente?->ragione_sociale }}</td>
                         <td class="td">{{ $t->sede?->descrizione }}</td>
-                        <td class="td">@if ($t->operatore){{ $t->operatore->codice }} ({{ trim(($t->operatore->cognome ?? '').' '.($t->operatore->nome ?? '')) }})@endif</td>
+                        <td class="td" @if (isset($coppiePreferite[$t->id_cliente.'-'.$t->id_operatore])) data-operatore-preferito @endif>@if ($t->operatore)<span class="inline-flex items-center gap-1">@if (isset($coppiePreferite[$t->id_cliente.'-'.$t->id_operatore]))<x-ui.stella />@endif<span>{{ $t->operatore->codice }} ({{ trim(($t->operatore->cognome ?? '').' '.($t->operatore->nome ?? '')) }})</span></span>@endif</td>
                         <td class="td whitespace-nowrap">{{ $t->inizio->format('d/m/Y H:i') }}</td>
                         <td class="td whitespace-nowrap">{{ $t->fine->format('d/m/Y H:i') }}</td>
                         <td class="td">{{ $t->ore }}@if ($t->ore_lavorate !== null) <span class="text-xs text-slate-500">({{ $t->ore_lavorate }} lav.)</span>@endif</td>
@@ -474,7 +486,7 @@
                     <div wire:key="crea-turno-operatori-{{ $f['cliente_id'] }}-{{ $f['data_inizio'] }}-{{ $f['ora_inizio'] }}-{{ $f['data_fine'] }}-{{ $f['ora_fine'] }}">
                         <x-select-ricerca
                             model="f.operatore_id"
-                            :options="$disponibili->map(fn ($o) => ['id' => $o->id, 'label' => ($o->preferito ? '★ ' : '').$o->nome_completo])->values()"
+                            :options="$disponibili->map(fn ($o) => ['id' => $o->id, 'label' => $o->nome_completo, 'preferito' => (bool) $o->preferito])->values()"
                             placeholder="Seleziona un operatore"
                         />
                     </div>

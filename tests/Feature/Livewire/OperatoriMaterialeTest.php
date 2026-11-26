@@ -56,7 +56,7 @@ class OperatoriMaterialeTest extends TestCase
     public function test_delete_operator_requires_name_removes_related_data_and_blocks_with_shifts(): void
     {
         $this->creaSchema();
-        foreach (['tc_turni', 'tc_gda', 'tc_operatori_preferiti', 'tc_operatori_escludi', 'tc_documenti_view', 'tc_bacheca_view'] as $tabella) {
+        foreach (['tc_gda', 'tc_operatori_preferiti', 'tc_operatori_escludi', 'tc_documenti_view', 'tc_bacheca_view'] as $tabella) {
             Schema::create($tabella, function (Blueprint $table): void {
                 $table->increments('id');
                 $table->unsignedInteger('id_operatore')->nullable();
@@ -124,6 +124,49 @@ class OperatoriMaterialeTest extends TestCase
 
         $componente->set('righeFormazioni.2', ['inizio' => '', 'fine' => '', 'descrizione' => 'Manomessa'])->call('salvaFormazione', 2)->assertNotFound();
         $this->assertSame('Altro operatore', DB::table('tc_documenti')->where('id', 2)->value('descrizione'));
+    }
+
+    public function test_attestato_row_updates_type_description_expiry_and_file(): void
+    {
+        $this->creaSchema();
+        DB::table('_certificati')->insert([
+            ['id' => 1, 'nome' => 'Primo soccorso'],
+            ['id' => 2, 'nome' => 'Antincendio'],
+        ]);
+        $disco = config('filesystems.files_disk');
+        Storage::fake($disco);
+        DB::table('tc_documenti')->insert([
+            'id' => 1, 'id_tipo' => 10, 'tipo' => 'O', 'formazione' => 'N', 'tipologia' => 1,
+            'descrizione' => 'Vecchia', 'scadenza' => '2026-01-01', 'file' => 'vecchio.pdf', 'icona' => 'file-pdf',
+        ]);
+        Storage::disk($disco)->put((new Documento(['id_tipo' => 10, 'tipo' => 'O', 'file' => 'vecchio.pdf']))->percorso(), 'x');
+
+        Livewire::actingAs(new User(['user_type' => 2]))->test(Operatori::class)
+            ->call('modifica', 10)
+            ->set('tab', 'attestati')
+            ->assertSet('righeAttestati.1.descrizione', 'Vecchia')
+            ->assertSee('Salva riga')
+            ->set('righeAttestati.1.tipologia', '2')
+            ->set('righeAttestati.1.descrizione', 'Nuova')
+            ->set('righeAttestati.1.scadenza', '2028-05-01')
+            ->set('fileRigheAttestati.1', UploadedFile::fake()->create('nuovo.pdf', 10, 'application/pdf'))
+            ->call('salvaAttestato', 1)
+            ->assertHasNoErrors()
+            ->assertSee('Documento aggiornato.');
+
+        $riga = DB::table('tc_documenti')->where('id', 1)->first();
+        $this->assertSame(2, (int) $riga->tipologia);
+        $this->assertSame('Nuova', $riga->descrizione);
+        $this->assertSame('2028-05-01', substr((string) $riga->scadenza, 0, 10));
+        $this->assertStringStartsWith('Documento_', $riga->file);
+        Storage::disk($disco)->assertMissing((new Documento(['id_tipo' => 10, 'tipo' => 'O', 'file' => 'vecchio.pdf']))->percorso());
+
+        Livewire::actingAs(new User(['user_type' => 2]))->test(Operatori::class)
+            ->call('modifica', 11)
+            ->set('righeAttestati.1', ['tipologia' => '1', 'descrizione' => 'Manomessa', 'scadenza' => '', 'file' => 'x.pdf'])
+            ->call('salvaAttestato', 1)
+            ->assertNotFound();
+        $this->assertSame('Nuova', DB::table('tc_documenti')->where('id', 1)->value('descrizione'));
     }
 
     public function test_overdue_undelivered_material_is_flagged_like_the_reminder_job(): void
@@ -212,6 +255,11 @@ class OperatoriMaterialeTest extends TestCase
             $table->unsignedInteger('tipologia')->nullable();
         });
 
+        Schema::create('tc_turni', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->unsignedInteger('id_operatore')->nullable();
+            $table->string('stato')->nullable();
+        });
         Schema::create('tc_messaggi', function (Blueprint $table): void {
             $table->integer('id')->primary();
             $table->integer('giorni')->nullable();
